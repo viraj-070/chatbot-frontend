@@ -1,94 +1,82 @@
-import { useEffect, useRef, useState } from "react"
+import { useState } from "react"
+import Chat from "./components/Chat"
+
+const defaultMessages = [{ role: "assistant", content: "hi im pibot. type and i will answer." }]
+const defaultModel = "moonshotai/kimi-k2-thinking"
 
 export default function App() {
-  const [messages, setMessages] = useState([
-    { role: "assistant", content: "hi im pibot. type and i will answer." }
-  ])
-  const [inp, setInp] = useState("")
+  const [messages, setMessages] = useState(defaultMessages)
   const [busy, setBusy] = useState(false)
-  const endRef = useRef(null)
+  const [status, setStatus] = useState("ready")
+  const modelId = import.meta.env.VITE_NVIDIA_MODEL ?? defaultModel
 
-  useEffect(() => {
-    if (!endRef.current) return
-    endRef.current.scrollIntoView({ behavior: "smooth", block: "end" })
-  }, [messages, busy])
-  
-  async function send(e) {
-    e.preventDefault()
-    if (busy) return
-    const t = inp.trim()
-    if (!t) return
-
-    setInp("")
-    setBusy(true)
-
-    const userObj = { role: "user", content: t }
-    const botObj = { role: "assistant", content: "" }
-
-    setMessages((m) => {
-      m.push(userObj)
-      m.push(botObj)
-      return [...m]
+  async function requestCompletion(chatMessages) {
+    const response = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages: chatMessages, model: modelId })
     })
+    if (!response.ok) {
+      const errorPayload = await response.json().catch(() => ({}))
+      const detail = errorPayload.detail ? `: ${errorPayload.detail}` : ""
+      throw new Error((errorPayload.error ?? `request failed (${response.status})`) + detail)
+    }
+    const data = await response.json()
+    return data.message ?? ""
+  }
 
-    const dummy = "hello how can i help you today?"
+  async function handleSend(text) {
+    if (busy) return
+    setBusy(true)
+    setStatus("thinking")
+    const userMessage = { role: "user", content: text }
+    const botMessage = { role: "assistant", content: "__thinking__" }
+    const payload = [...messages, userMessage]
+    setMessages((current) => [...current, userMessage, botMessage])
     try {
-      await new Promise((r) => setTimeout(r, 550))
-      setMessages((m) => {
-        for (let i = m.length - 1; i >= 0; i--) {
-          if (m[i]?.role === "assistant" && m[i]?.content === "") {
-            m[i].content = dummy
+      const answer = await requestCompletion(payload)
+      setMessages((current) => {
+        const copy = [...current]
+        for (let i = copy.length - 1; i >= 0; i--) {
+          if (copy[i].role === "assistant" && copy[i].content === "__thinking__") {
+            copy[i].content = answer || "sorry, nothing came back"
             break
           }
         }
-        return [...m]
+        return copy
       })
+      setStatus("ready")
+    } catch (error) {
+      setStatus("failed to reach Nvidia")
+      setMessages((current) => {
+        const copy = [...current]
+        for (let i = copy.length - 1; i >= 0; i--) {
+          if (copy[i].role === "assistant" && copy[i].content === "__thinking__") {
+            copy[i].content = String(error.message || "i hit a snag reaching Nvidia")
+            break
+          }
+        }
+        return copy
+      })
+      console.error(error)
     } finally {
       setBusy(false)
     }
   }
 
   return (
-    <div className="h-screen flex bg-white text-gray-900">
-      <aside className="w-64 border-r border-gray-200 p-4 flex flex-col">
-        <div className="font-semibold text-lg">Project</div>
+    <div className="flex h-screen overflow-hidden bg-white text-gray-900">
+      <aside className="w-64 border-r border-gray-200 p-4">
+        <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700">sidebar</div>
       </aside>
 
-      <div className="flex-1 flex flex-col">
-        <div className="flex-1 overflow-auto p-4">
-          {messages.map((m, i) => {
-            const mine = m.role === "user"
-            return (
-              <div key={i} className={`flex ${mine ? "justify-end" : "justify-start"} mb-3`}>
-                <div
-                  className={`max-w-[78%] whitespace-pre-wrap rounded-xl px-4 py-2 text-sm border ${
-                    mine ? "bg-orange-600 border-orange-600 text-white" : "bg-gray-100 border-gray-200 text-gray-900"
-                  }`}
-                >
-                  <div className="whitespace-pre-wrap break-words">{m.content}</div>
-                </div>
-              </div>
-            )
-          })}
-          <div ref={endRef} />
+      <div className="flex w-full min-h-0 flex-1 flex-col">
+        <div className="flex min-h-0 flex-1 flex-col p-6">
+          <div className="text-2xl font-semibold text-gray-800">pibot chat</div>
+          <div className="mt-4 flex min-h-0 flex-1 w-full rounded-3xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+            <Chat messages={messages} onSend={handleSend} busy={busy} status={status} />
+          </div>
         </div>
-
-        <form onSubmit={send} className="p-4 border-t border-gray-200 flex gap-2 items-center">
-          <input
-            value={inp}
-            onChange={(e) => setInp(e.target.value)}
-            disabled={busy}
-            placeholder="type.."
-            className="flex-1 bg-white border border-gray-300 rounded-md px-3 py-2 outline-none focus:ring-2 focus:ring-orange-200"
-          />
-          <button
-            type="submit"
-            disabled={busy}
-            className="bg-orange-600 hover:bg-orange-500 disabled:opacity-60 disabled:cursor-not-allowed rounded-md px-4 py-2 text-sm font-semibold text-white"
-          >
-            send
-          </button>
-        </form>
       </div>
     </div>
   )

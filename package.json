@@ -5,13 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "vite --port 5173",
+    "dev:backend": "npm --prefix backend run dev",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"
   },
   "dependencies": {
-    "concurrently": "^9.2.1",
-    "express": "^5.2.1",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-markdown": "^10.1.0",

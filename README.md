@@ -1,12 +1,28 @@
-# React + Vite
+# Pibot Chat
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Simple React chat app with a separate Node backend proxy for Nvidia models.
 
-Currently, two official plugins are available:
+## Setup
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+1. Install frontend packages:
+`npm install`
 
-## Expanding the ESLint configuration
+2. Install backend packages:
+`npm --prefix backend install`
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+3. Create backend env file:
+Copy `backend/.env.example` to `backend/.env`
+
+4. Add your Nvidia key in `backend/.env`:
+`NVIDIA_API_KEY=your_key_here`
+
+## Run
+
+1. Start backend:
+`npm run dev:backend`
+
+2. Start frontend:
+`npm run dev`
+
+Frontend runs on `http://localhost:5173`.
+Backend runs on `http://localhost:5188`.
