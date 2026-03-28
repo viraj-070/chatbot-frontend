@@ -14,7 +14,11 @@ const PORT = process.env.SERVER_PORT ?? 5188;
 const baseUrl = (
   process.env.NVIDIA_BASE_URL ?? "https://integrate.api.nvidia.com/v1"
 ).replace(/\/$/, "");
-const defaultModel = process.env.NVIDIA_MODEL ?? "moonshotai/kimi-k2-thinking";
+
+// Use a regular model without thinking output
+// For thinking models like "moonshotai/kimi-k2-thinking", they output reasoning which requires filtering
+// Recommended models: "meta/llama-3.1-8b-instruct", "mistralai/mistral-7b-instruct-v0.3"
+const defaultModel = process.env.NVIDIA_MODEL ?? "meta/llama-3.1-8b-instruct";
 const defaultMaxTokens = Number(process.env.NVIDIA_MAX_TOKENS ?? 16384);
 const apiKey = process.env.NVIDIA_API_KEY ?? process.env.VITE_NVIDIA_API_KEY;
 const openai = new OpenAI({
@@ -74,11 +78,44 @@ app.post("/api/chat", async (req, res) => {
       stream: true,
     });
 
+    let inThinkingBlock = false;
+    let buffer = "";
+
     for await (const chunk of completion) {
       const delta = chunk.choices?.[0]?.delta;
       if (!delta) continue;
       if (delta.content) {
-        const cleanedContent = delta.content.replace(/<\/?think>/gi, "");
+        buffer += delta.content;
+        
+        // Check for opening thinking tag
+        if (buffer.includes("<thinking>") || buffer.includes("<think>")) {
+          inThinkingBlock = true;
+        }
+        
+        // Check for closing thinking tag
+        if (buffer.includes("</thinking>") || buffer.includes("</think>")) {
+          // Remove everything from opening to closing tag
+          buffer = buffer.replace(/<thinking>[\s\S]*?<\/thinking>/gi, "");
+          buffer = buffer.replace(/<think>[\s\S]*?<\/think>/gi, "");
+          inThinkingBlock = false;
+        }
+        
+        // Only send content if we're not in a thinking block
+        if (!inThinkingBlock && buffer.length > 0) {
+          // Clean any remaining tags
+          const cleanedContent = buffer.replace(/<\/?thinking>/gi, "").replace(/<\/?think>/gi, "");
+          if (cleanedContent) {
+            res.write(`data: ${JSON.stringify({ content: cleanedContent })}\n\n`);
+          }
+          buffer = "";
+        }
+      }
+    }
+    
+    // Send any remaining buffered content
+    if (buffer.length > 0 && !inThinkingBlock) {
+      const cleanedContent = buffer.replace(/<\/?thinking>/gi, "").replace(/<\/?think>/gi, "");
+      if (cleanedContent) {
         res.write(`data: ${JSON.stringify({ content: cleanedContent })}\n\n`);
       }
     }
