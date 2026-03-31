@@ -1,17 +1,12 @@
 import { useState, useRef } from "react";
 import Chat from "./components/Chat";
 
-const defaultMessages = [
-  {
-    role: "assistant",
-    content: "hi! i'm pibot, your ai assistant. ask me anything",
-  },
-];
+const getDefaultMessages = () => [];
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:5188";
 
 export default function App() {
-  const [messages, setMessages] = useState(defaultMessages);
+  const [messages, setMessages] = useState(getDefaultMessages);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("ready");
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -100,12 +95,17 @@ export default function App() {
     if (busy) return;
     setBusy(true);
     setStatus("thinking");
-    
+
     // Create new AbortController for this request
     abortControllerRef.current = new AbortController();
-    
-    const userMessage = { role: "user", content: text };
-    const botMessage = { role: "assistant", content: "", streaming: true };
+
+    const userMessage = { role: "user", content: text, timestamp: new Date() };
+    const botMessage = {
+      role: "assistant",
+      content: "",
+      streaming: true,
+      timestamp: new Date(),
+    };
     const payload = [...messages, userMessage];
     setMessages((current) => [...current, userMessage, botMessage]);
     try {
@@ -168,6 +168,10 @@ export default function App() {
     }
   }
 
+  function handleClearChat() {
+    setMessages(getDefaultMessages());
+  }
+
   return (
     <div className="flex h-screen overflow-hidden bg-white text-gray-900">
       {/* Mobile sidebar overlay */}
@@ -218,14 +222,39 @@ export default function App() {
       {/* Main content */}
       <div className="flex w-full min-h-0 flex-1 flex-col">
         <div className="flex min-h-0 flex-1 flex-col p-3 sm:p-4 md:p-6">
-          {/* Header with mobile menu button */}
-          <div className="flex items-center gap-3">
+          {/* Header with mobile menu button and clear chat */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setSidebarOpen(true)}
+                className="p-2 rounded-lg hover:bg-gray-100 md:hidden"
+              >
+                <svg
+                  className="w-6 h-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 6h16M4 12h16M4 18h16"
+                  />
+                </svg>
+              </button>
+              <div className="text-xl sm:text-2xl font-semibold text-gray-800">
+                pibot chat
+              </div>
+            </div>
+            {/* Clear chat button */}
             <button
-              onClick={() => setSidebarOpen(true)}
-              className="p-2 rounded-lg hover:bg-gray-100 md:hidden"
+              onClick={handleClearChat}
+              disabled={busy || messages.length === 0}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <svg
-                className="w-6 h-6"
+                className="w-4 h-4"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -234,19 +263,18 @@ export default function App() {
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   strokeWidth={2}
-                  d="M4 6h16M4 12h16M4 18h16"
+                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
                 />
               </svg>
+              <span className="hidden sm:inline">Clear</span>
             </button>
-            <div className="text-xl sm:text-2xl font-semibold text-gray-800">
-              pibot chat
-            </div>
           </div>
-          <div className="mt-3 sm:mt-4 flex min-h-0 flex-1 w-full rounded-2xl sm:rounded-3xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+          <div className="mt-3 sm:mt-4 flex min-h-0 flex-1 w-full bg-white overflow-hidden">
             <Chat
               messages={messages}
               onSend={handleSend}
               onStop={handleStop}
+              onClear={handleClearChat}
               busy={busy}
               status={status}
             />
