@@ -10,6 +10,7 @@ export default function Chat({
   onClear,
   busy,
   status,
+  isStorageFull,
 }) {
   const [input, setInput] = useState("");
   const [copiedIndex, setCopiedIndex] = useState(null);
@@ -47,7 +48,7 @@ export default function Chat({
   function handleSubmit(event) {
     event.preventDefault();
     const trimmed = input.trim();
-    if (!trimmed || busy) return;
+    if (!trimmed || busy || isStorageFull) return;
     setInput("");
     if (textareaRef.current) {
       textareaRef.current.style.height = "44px";
@@ -410,6 +411,11 @@ export default function Chat({
 
       {/* Input area */}
       <div className="w-full relative">
+        {isStorageFull && (
+          <div className="absolute -top-10 left-1/2 -translate-x-1/2 w-max max-w-[90%] text-center bg-red-100 border border-red-300 text-red-700 text-xs sm:text-sm font-medium px-3 py-1.5 rounded-full shadow-sm z-30">
+            if memory full clear chat to continue conversation
+          </div>
+        )}
         <form
           onSubmit={handleSubmit}
           className="w-full max-w-3xl mx-auto flex flex-col gap-2 p-3 sm:p-4 "
@@ -422,10 +428,10 @@ export default function Chat({
                 value={input}
                 onChange={(event) => setInput(event.target.value)}
                 onKeyDown={handleKeyDown}
-                disabled={busy}
-                placeholder="Ask me anything..."
+                disabled={busy || isStorageFull}
+                placeholder={isStorageFull ? "Memory full..." : "Ask me anything..."}
                 rows={1}
-                className="w-full resize-none rounded-2xl border border-gray-200 bg-gray-50/50 px-4 py-3.5 text-sm sm:text-base outline-none focus:ring-2 focus:ring-orange-400/50 focus:border-orange-400 focus:bg-white shadow-sm transition-all [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+                className={`w-full resize-none rounded-2xl border ${isStorageFull ? "bg-red-50/50 border-red-200 cursor-not-allowed" : "bg-gray-50/50 border-gray-200"} px-4 py-3.5 text-sm sm:text-base outline-none focus:ring-2 focus:ring-orange-400/50 focus:border-orange-400 focus:bg-white shadow-sm transition-all [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden`}
                 style={{ minHeight: "52px", maxHeight: "200px" }}
               />
             </div>
@@ -446,7 +452,7 @@ export default function Chat({
             ) : (
               <button
                 type="submit"
-                disabled={!input.trim()}
+                disabled={!input.trim() || isStorageFull}
                 className="rounded-full bg-gradient-to-br from-orange-400 to-orange-500 w-[52px] h-[52px] text-white transition-all hover:from-orange-500 hover:to-orange-600 hover:scale-105 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center shrink-0 shadow-md"
               >
                 <svg
