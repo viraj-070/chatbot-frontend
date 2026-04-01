@@ -429,7 +429,9 @@ export default function Chat({
                 onChange={(event) => setInput(event.target.value)}
                 onKeyDown={handleKeyDown}
                 disabled={busy || isStorageFull}
-                placeholder={isStorageFull ? "Memory full..." : "Ask me anything..."}
+                placeholder={
+                  isStorageFull ? "Memory full..." : "Ask me anything..."
+                }
                 rows={1}
                 className={`w-full resize-none rounded-2xl border ${isStorageFull ? "bg-red-50/50 border-red-200 cursor-not-allowed" : "bg-gray-50/50 border-gray-200"} px-4 py-3.5 text-sm sm:text-base outline-none focus:ring-2 focus:ring-orange-400/50 focus:border-orange-400 focus:bg-white shadow-sm transition-all [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden`}
                 style={{ minHeight: "52px", maxHeight: "200px" }}

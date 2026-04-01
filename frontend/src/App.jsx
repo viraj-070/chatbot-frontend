@@ -23,7 +23,12 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("ready");
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [storageData, setStorageData] = useState({ percentage: 0, bytes: 0, tokens: 0, isFull: false });
+  const [storageData, setStorageData] = useState({
+    percentage: 0,
+    bytes: 0,
+    tokens: 0,
+    isFull: false,
+  });
   const abortControllerRef = useRef(null);
 
   useEffect(() => {
@@ -33,20 +38,25 @@ export default function App() {
       let bytes = new Blob([str]).size;
 
       // No auto-pruning. Handled gracefully by UI if it reaches the limit.
-      
+
       localStorage.setItem(STORAGE_KEY, str);
       const percentage = Math.min(100, (bytes / MAX_STORAGE_BYTES) * 100);
-      setStorageData({ 
-        percentage: percentage.toFixed(2), 
+      setStorageData({
+        percentage: percentage.toFixed(2),
         bytes,
         tokens: Math.round(bytes / 4),
-        isFull: bytes >= MAX_STORAGE_BYTES // Will only be true if a single message exceeds 4MB
+        isFull: bytes >= MAX_STORAGE_BYTES, // Will only be true if a single message exceeds 4MB
       });
     } catch (e) {
       console.error("Failed to save history to local storage", e);
-      if (e.name === 'QuotaExceededError') {
+      if (e.name === "QuotaExceededError") {
         const bytes = MAX_STORAGE_BYTES;
-        setStorageData({ percentage: 100, bytes, tokens: Math.round(bytes / 4), isFull: true });
+        setStorageData({
+          percentage: 100,
+          bytes,
+          tokens: Math.round(bytes / 4),
+          isFull: true,
+        });
       }
     }
   }, [messages]);
@@ -296,13 +306,19 @@ export default function App() {
                   )}
                   <div className="absolute top-full mt-2 left-0 w-64 p-4 bg-white border border-gray-200 rounded-xl shadow-lg text-sm text-gray-700 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 pointer-events-none">
                     <div className="flex justify-between items-center mb-3 pb-3 border-b border-gray-100">
-                      <h4 className="font-semibold text-gray-900 tracking-tight">Storage Usage</h4>
-                      <span className="text-xs font-mono text-gray-500 bg-gray-100 px-2 py-0.5 rounded-md">{(storageData.bytes / 1024).toFixed(1)} KB / 4 MB</span>
+                      <h4 className="font-semibold text-gray-900 tracking-tight">
+                        Storage Usage
+                      </h4>
+                      <span className="text-xs font-mono text-gray-500 bg-gray-100 px-2 py-0.5 rounded-md">
+                        {(storageData.bytes / 1024).toFixed(1)} KB / 4 MB
+                      </span>
                     </div>
                     <div className="space-y-3">
                       <div className="flex justify-between items-center text-xs">
                         <span className="text-gray-500">Current Capacity</span>
-                        <span className="font-medium text-gray-800">{storageData.percentage}%</span>
+                        <span className="font-medium text-gray-800">
+                          {storageData.percentage}%
+                        </span>
                       </div>
                     </div>
                   </div>
