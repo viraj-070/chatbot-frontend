@@ -8,7 +8,7 @@ This project is built to help you understand how modern AI chat interfaces work,
 💭 **Thinking UI indicators** - Beautiful loading states while AI processes  
 🎨 **Syntax-highlighted code blocks** - Professional code rendering with copy functionality  
 📊 **Rich content support** - Tables, lists, links, and formatted text using React Markdown  
-🚀 **Clean architecture** - Separate frontend/backend for easy deployment  
+🚀 **Clean architecture** - Separate frontend/backend for easy deployment
 
 **Feel free to use this project** as a starting point for your own AI chat applications! Whether you're learning about streaming, building a chatbot, or creating an AI interface, this repo will help you get started.
 
@@ -110,23 +110,27 @@ The frontend is configured for Vercel deployment:
 ## Features in Detail
 
 ### 🎯 Streaming Responses
+
 - Real-time Server-Sent Events (SSE) implementation
 - Smooth text streaming with cursor animation
 - Backward compatible with non-streaming responses
 
 ### 🎨 Code Blocks
+
 - Syntax highlighting for all popular languages
 - Copy-to-clipboard functionality with feedback
 - Sticky header showing language name
 - Dark theme using VS Code's color scheme
 
 ### 📝 React Markdown
+
 - Full GFM (GitHub Flavored Markdown) support
 - Custom styling for headings, lists, tables, and blockquotes
 - Inline code snippets with orange accent
 - Responsive and accessible
 
 ### 💡 UI/UX
+
 - Clean, modern interface
 - Thinking indicators for AI processing
 - User messages in orange bubbles

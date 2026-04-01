@@ -153,7 +153,7 @@ export default function Chat({
       <div className="chat-container flex min-h-0 flex-1 flex-col w-full relative">
         {/* Top gradient for smooth fading - masked to make edges soft */}
         <div
-          className="w-full max-w-3xl mx-auto absolute top-0 left-0 right-0 h-5 bg-gradient-to-b from-orange-200 to-transparent z-10 pointer-events-none"
+          className="absolute top-0 left-0 right-0 h-5 bg-gradient-to-b from-orange-50 to-transparent z-10 pointer-events-none"
           style={{
             maskImage:
               "linear-gradient(to right, transparent, black 5%, black 95%, transparent)",
@@ -169,6 +169,62 @@ export default function Chat({
           className="flex-1 overflow-y-auto custom-scrollbar relative px-3 sm:px-4 py-6"
         >
           <div className="w-full max-w-3xl mx-auto space-y-4">
+            {messages.length === 0 && (
+              <div className="flex flex-col items-center justify-center min-h-[50vh] text-center px-4 py-8">
+                <div className="w-16 h-16 bg-gradient-to-br from-orange-400 to-orange-500 rounded-2xl flex items-center justify-center mb-6 shadow-sm shadow-orange-200">
+                  <svg
+                    className="w-8 h-8 text-white ml-1"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2.5}
+                      d="M5 12h14M12 5l7 7-7 7"
+                    />
+                  </svg>
+                </div>
+                <h2 className="text-2xl font-bold text-gray-800 mb-2">
+                  Welcome to pibot chat
+                </h2>
+                <p className="text-gray-500 mb-8 max-w-md">
+                  I'm your AI assistant. How can I help you today? Choose a
+                  suggestion below or type your own question.
+                </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-2xl text-left">
+                  {[
+                    "What features can you build using React and Tailwind?",
+                    "How do I optimize a Vite React app?",
+                    "Explain the use of React hooks with an example.",
+                    "Help me write a Python script for data analysis.",
+                  ].map((suggestion, i) => (
+                    <button
+                      key={i}
+                      onClick={() => onSend(suggestion)}
+                      className="p-4 rounded-xl border border-orange-200/60 bg-white/80 hover:bg-orange-50 hover:border-orange-300 hover:shadow-sm transition-all text-sm text-gray-700 hover:text-orange-700 group flex items-start justify-between"
+                    >
+                      <span className="pr-4">{suggestion}</span>
+                      <svg
+                        className="w-5 h-5 text-gray-300 mt-0.5 group-hover:text-orange-400 group-hover:translate-x-1 transition-transform shrink-0"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M9 5l7 7-7 7"
+                        />
+                      </svg>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             {messages.map((message, index) => {
               const mine = message.role === "user";
               const isStreaming = message.streaming;
@@ -319,7 +375,7 @@ export default function Chat({
 
         {/* Bottom gradient for smooth fading - masked to make edges soft */}
         <div
-          className="w-full max-w-3xl mx-auto absolute bottom-0 left-0 right-0 h-5 bg-gradient-to-b from-transparent to-orange-200 z-10 pointer-events-none"
+          className="absolute bottom-0 left-0 right-0 h-5 bg-gradient-to-b from-transparent to-orange-50 z-10 pointer-events-none"
           style={{
             maskImage:
               "linear-gradient(to right, transparent, black 10%, black 90%, transparent)",
@@ -358,7 +414,7 @@ export default function Chat({
           onSubmit={handleSubmit}
           className="w-full max-w-3xl mx-auto flex flex-col gap-2 p-3 sm:p-4 "
         >
-          <div className="flex gap-2 sm:gap-3 items-end">
+          <div className="flex gap-2 sm:gap-3 items-start justify-center">
             <div className="flex-1 min-w-0">
               {/* Added hide-scrollbar logic visually */}
               <textarea

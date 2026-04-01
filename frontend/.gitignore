@@ -19,6 +19,8 @@ dist-ssr
 # Frontend
 /frontend/node_modules
 /frontend/dist
+test.js
+Data.js
 
 # Backend
 /backend/node_modules

@@ -86,12 +86,12 @@ app.post("/api/chat", async (req, res) => {
       if (!delta) continue;
       if (delta.content) {
         buffer += delta.content;
-        
+
         // Check for opening thinking tag
         if (buffer.includes("<thinking>") || buffer.includes("<think>")) {
           inThinkingBlock = true;
         }
-        
+
         // Check for closing thinking tag
         if (buffer.includes("</thinking>") || buffer.includes("</think>")) {
           // Remove everything from opening to closing tag
@@ -99,22 +99,28 @@ app.post("/api/chat", async (req, res) => {
           buffer = buffer.replace(/<think>[\s\S]*?<\/think>/gi, "");
           inThinkingBlock = false;
         }
-        
+
         // Only send content if we're not in a thinking block
         if (!inThinkingBlock && buffer.length > 0) {
           // Clean any remaining tags
-          const cleanedContent = buffer.replace(/<\/?thinking>/gi, "").replace(/<\/?think>/gi, "");
+          const cleanedContent = buffer
+            .replace(/<\/?thinking>/gi, "")
+            .replace(/<\/?think>/gi, "");
           if (cleanedContent) {
-            res.write(`data: ${JSON.stringify({ content: cleanedContent })}\n\n`);
+            res.write(
+              `data: ${JSON.stringify({ content: cleanedContent })}\n\n`,
+            );
           }
           buffer = "";
         }
       }
     }
-    
+
     // Send any remaining buffered content
     if (buffer.length > 0 && !inThinkingBlock) {
-      const cleanedContent = buffer.replace(/<\/?thinking>/gi, "").replace(/<\/?think>/gi, "");
+      const cleanedContent = buffer
+        .replace(/<\/?thinking>/gi, "")
+        .replace(/<\/?think>/gi, "");
       if (cleanedContent) {
         res.write(`data: ${JSON.stringify({ content: cleanedContent })}\n\n`);
       }

@@ -173,7 +173,7 @@ export default function App() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-white text-gray-900">
+    <div className="flex h-screen overflow-hidden bg-orange-50 text-gray-900">
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <div
@@ -187,8 +187,8 @@ export default function App() {
         className={`
         fixed md:relative z-50 md:z-auto
         w-64 h-full
-        border-r border-gray-200 p-4
-        bg-white
+        border-r border-orange-200/50 p-4
+        bg-orange-50/50
         transform transition-transform duration-300 ease-in-out
         ${sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
       `}
@@ -269,7 +269,7 @@ export default function App() {
               <span className="hidden sm:inline">Clear</span>
             </button>
           </div>
-          <div className="mt-3 sm:mt-4 flex min-h-0 flex-1 w-full bg-white overflow-hidden">
+          <div className="mt-3 sm:mt-4 flex min-h-0 flex-1 w-full bg-transparent overflow-hidden">
             <Chat
               messages={messages}
               onSend={handleSend}
