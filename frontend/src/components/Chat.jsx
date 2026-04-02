@@ -7,7 +7,9 @@ export default function Chat({
   messages,
   onSend,
   onStop,
-  onClear,
+  availableModels,
+  selectedModel,
+  onModelChange,
   busy,
   status,
   isStorageFull,
@@ -15,9 +17,11 @@ export default function Chat({
   const [input, setInput] = useState("");
   const [copiedIndex, setCopiedIndex] = useState(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
+  const [isModelMenuOpen, setIsModelMenuOpen] = useState(false);
   const endRef = useRef(null);
   const textareaRef = useRef(null);
   const messagesContainerRef = useRef(null);
+  const modelMenuRef = useRef(null);
 
   // Auto-resize textarea
   const adjustTextareaHeight = useCallback(() => {
@@ -31,6 +35,27 @@ export default function Chat({
   useEffect(() => {
     adjustTextareaHeight();
   }, [input, adjustTextareaHeight]);
+
+  useEffect(() => {
+    function handleOutsideClick(event) {
+      if (!modelMenuRef.current?.contains(event.target)) {
+        setIsModelMenuOpen(false);
+      }
+    }
+
+    function handleEscape(event) {
+      if (event.key === "Escape") {
+        setIsModelMenuOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleOutsideClick);
+    document.addEventListener("keydown", handleEscape);
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, []);
 
   // Detect scroll position for scroll button visibility
   const handleScroll = useCallback(() => {
@@ -92,6 +117,10 @@ export default function Chat({
     return content.includes("<think>") || content.includes("</think>");
   }
 
+  const selectedModelLabel =
+    availableModels.find((model) => model.id === selectedModel)?.label ||
+    "Choose model";
+
   return (
     <div className="flex w-full h-full min-h-0 flex-col">
       <style>{`
@@ -148,6 +177,26 @@ export default function Chat({
         }
         .chat-container textarea {
           cursor: text;
+        }
+
+        .model-menu-scrollbar::-webkit-scrollbar {
+          width: 8px;
+        }
+        .model-menu-scrollbar::-webkit-scrollbar-track {
+          background: #fff7ed;
+          border-radius: 9999px;
+        }
+        .model-menu-scrollbar::-webkit-scrollbar-thumb {
+          background: linear-gradient(180deg, #fdba74 0%, #fb923c 100%);
+          border-radius: 9999px;
+          border: 2px solid #fff7ed;
+        }
+        .model-menu-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: linear-gradient(180deg, #fb923c 0%, #f97316 100%);
+        }
+        .model-menu-scrollbar {
+          scrollbar-width: thin;
+          scrollbar-color: #fb923c #fff7ed;
         }
       `}</style>
 
@@ -275,7 +324,7 @@ export default function Chat({
                             <ReactMarkdown
                               remarkPlugins={[remarkGfm]}
                               components={{
-                                table({ node, children, ...props }) {
+                                table({ children, ...props }) {
                                   return (
                                     <div className="overflow-x-auto my-3 -mx-1 px-1">
                                       <table {...props}>{children}</table>
@@ -283,7 +332,6 @@ export default function Chat({
                                   );
                                 },
                                 code({
-                                  node,
                                   inline,
                                   className,
                                   children,
@@ -420,6 +468,99 @@ export default function Chat({
           onSubmit={handleSubmit}
           className="w-full max-w-3xl mx-auto flex flex-col gap-2 p-3 sm:p-4 "
         >
+          <div className="flex justify-start">
+            <div className="relative" ref={modelMenuRef}>
+              <button
+                type="button"
+                onClick={() => {
+                  if (busy || availableModels.length === 0) return;
+                  setIsModelMenuOpen((prev) => !prev);
+                }}
+                disabled={busy || availableModels.length === 0}
+                className="group inline-flex max-w-[300px] sm:max-w-[420px] items-center gap-2 rounded-xl border border-orange-200/80 bg-white/90 px-3 py-2 text-xs sm:text-sm text-gray-700 shadow-sm transition-all hover:border-orange-300 hover:bg-orange-50 disabled:cursor-not-allowed disabled:opacity-60"
+                aria-haspopup="listbox"
+                aria-expanded={isModelMenuOpen}
+              >
+                <span className="inline-flex h-2 w-2 shrink-0 rounded-full bg-orange-400"></span>
+                <span className="text-gray-500 font-medium">Model</span>
+                <span className="truncate font-semibold text-gray-800">
+                  {selectedModelLabel}
+                </span>
+                <svg
+                  className={`h-4 w-4 shrink-0 text-orange-500 transition-transform ${
+                    isModelMenuOpen ? "rotate-180" : ""
+                  }`}
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 011.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </button>
+
+              {isModelMenuOpen && (
+                <div className="absolute bottom-[calc(100%+10px)] left-0 z-40 w-[min(90vw,380px)] overflow-hidden rounded-2xl border border-orange-200 bg-white shadow-xl shadow-orange-100">
+                  <div className="border-b border-orange-100 bg-orange-50/70 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-orange-700">
+                    Choose NVIDIA model
+                  </div>
+                  <ul
+                    role="listbox"
+                    className="model-menu-scrollbar max-h-56 overflow-y-auto p-1.5"
+                  >
+                    {availableModels.map((model) => {
+                      const selected = model.id === selectedModel;
+                      return (
+                        <li key={model.id}>
+                          <button
+                            type="button"
+                            role="option"
+                            aria-selected={selected}
+                            onClick={() => {
+                              onModelChange(model.id);
+                              setIsModelMenuOpen(false);
+                            }}
+                            className={`w-full rounded-xl px-3 py-2.5 text-left transition-colors ${
+                              selected
+                                ? "bg-orange-100 text-orange-800"
+                                : "text-gray-700 hover:bg-orange-50"
+                            }`}
+                          >
+                            <div className="flex items-center justify-between gap-3">
+                              <span className="truncate text-sm font-medium">
+                                {model.label}
+                              </span>
+                              {selected && (
+                                <svg
+                                  className="h-4 w-4 shrink-0 text-orange-600"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M5 13l4 4L19 7"
+                                  />
+                                </svg>
+                              )}
+                            </div>
+                            <div className="mt-1 truncate text-[11px] text-gray-500">
+                              {model.id}
+                            </div>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              )}
+            </div>
+          </div>
+
           <div className="flex gap-2 sm:gap-3 items-start justify-center">
             <div className="flex-1 min-w-0">
               {/* Added hide-scrollbar logic visually */}

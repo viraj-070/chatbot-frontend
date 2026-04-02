@@ -1,8 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Chat from "./components/Chat";
+import {
+  createProviderClient,
+  DEFAULT_NVIDIA_MODEL_ID,
+  DEFAULT_PROVIDER_ID,
+} from "./lib/providerAdapter";
 
 const STORAGE_KEY = "pibot_chat_store_v1";
 const LEGACY_STORAGE_KEY = "pibot_chat_history";
+const MODEL_STORAGE_KEY = "pibot_selected_model_v1";
+const PROVIDER_STORAGE_KEY = "pibot_selected_provider_v1";
 const MAX_STORAGE_BYTES = 4 * 1024 * 1024;
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:5188";
@@ -114,6 +121,13 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [editingChatId, setEditingChatId] = useState(null);
   const [editingTitle, setEditingTitle] = useState("");
+  const [selectedProvider] = useState(() => {
+    return localStorage.getItem(PROVIDER_STORAGE_KEY) || DEFAULT_PROVIDER_ID;
+  });
+  const [selectedModel, setSelectedModel] = useState(() => {
+    return localStorage.getItem(MODEL_STORAGE_KEY) || DEFAULT_NVIDIA_MODEL_ID;
+  });
+  const [availableModels, setAvailableModels] = useState([]);
   const [storageData, setStorageData] = useState(() => {
     const stats = getStoreStats(initialStore.chats, initialStore.activeChatId);
     return {
@@ -124,8 +138,54 @@ export default function App() {
   });
 
   const abortControllerRef = useRef(null);
+  const providerClient = useMemo(
+    () =>
+      createProviderClient({
+        providerId: selectedProvider,
+        apiBaseUrl: API_BASE_URL,
+      }),
+    [selectedProvider],
+  );
   const activeChat = chats.find((chat) => chat.id === activeChatId) || chats[0];
   const activeMessages = activeChat?.messages || [];
+
+  useEffect(() => {
+    localStorage.setItem(PROVIDER_STORAGE_KEY, selectedProvider);
+  }, [selectedProvider]);
+
+  useEffect(() => {
+    localStorage.setItem(MODEL_STORAGE_KEY, selectedModel);
+  }, [selectedModel]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadModels() {
+      try {
+        const models = await providerClient.listModels();
+        if (cancelled) return;
+
+        setAvailableModels(models);
+        setSelectedModel((currentModel) => {
+          if (models.some((model) => model.id === currentModel)) {
+            return currentModel;
+          }
+          return models[0]?.id || DEFAULT_NVIDIA_MODEL_ID;
+        });
+      } catch (error) {
+        if (cancelled) return;
+        console.error("Failed to load models", error);
+        setAvailableModels([]);
+        setSelectedModel(DEFAULT_NVIDIA_MODEL_ID);
+      }
+    }
+
+    loadModels();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [providerClient]);
 
   useEffect(() => {
     if (!chats.length) {
@@ -162,111 +222,49 @@ export default function App() {
     }
   }, [activeChatId, chats]);
 
-  async function requestCompletion(chatMessages, signal, targetChatId) {
-    const response = await fetch(`${API_BASE_URL}/api/chat`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messages: chatMessages }),
+  async function requestCompletion(
+    chatMessages,
+    signal,
+    targetChatId,
+    modelId,
+  ) {
+    const isKnownModel = availableModels.some((model) => model.id === modelId);
+    const safeModelId = isKnownModel
+      ? modelId
+      : (availableModels[0]?.id ?? DEFAULT_NVIDIA_MODEL_ID);
+
+    const content = await providerClient.streamMessage(
+      chatMessages,
+      safeModelId,
       signal,
-    });
-
-    if (!response.ok) {
-      const errorPayload = await response.json().catch(() => ({}));
-      const detail = errorPayload.detail ? `: ${errorPayload.detail}` : "";
-      throw new Error(
-        (errorPayload.error ?? `request failed (${response.status})`) + detail,
-      );
-    }
-
-    const contentType = response.headers.get("content-type");
-
-    if (contentType?.includes("application/json")) {
-      const data = await response.json();
-      const message = data.message ?? "";
-
-      setChats((currentChats) =>
-        currentChats.map((chat) => {
-          if (chat.id !== targetChatId) return chat;
-          const nextMessages = [...chat.messages];
-          for (let i = nextMessages.length - 1; i >= 0; i -= 1) {
-            if (
-              nextMessages[i].role === "assistant" &&
-              nextMessages[i].streaming
-            ) {
-              nextMessages[i] = {
-                ...nextMessages[i],
-                content: message,
-                streaming: false,
-              };
-              break;
-            }
-          }
-          return {
-            ...chat,
-            messages: nextMessages,
-            updatedAt: new Date().toISOString(),
-          };
-        }),
-      );
-
-      return message;
-    }
-
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let accumulatedText = "";
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      const chunk = decoder.decode(value);
-      const lines = chunk.split("\n");
-
-      for (const line of lines) {
-        if (!line.startsWith("data: ")) continue;
-        const data = line.slice(6);
-
-        if (data === "[DONE]") {
-          return accumulatedText;
-        }
-
-        try {
-          const parsed = JSON.parse(data);
-          if (!parsed.content) continue;
-
-          accumulatedText += parsed.content;
-
-          setChats((currentChats) =>
-            currentChats.map((chat) => {
-              if (chat.id !== targetChatId) return chat;
-              const nextMessages = [...chat.messages];
-              for (let i = nextMessages.length - 1; i >= 0; i -= 1) {
-                if (
-                  nextMessages[i].role === "assistant" &&
-                  nextMessages[i].streaming
-                ) {
-                  nextMessages[i] = {
-                    ...nextMessages[i],
-                    content: accumulatedText,
-                  };
-                  break;
-                }
+      (accumulatedText) => {
+        setChats((currentChats) =>
+          currentChats.map((chat) => {
+            if (chat.id !== targetChatId) return chat;
+            const nextMessages = [...chat.messages];
+            for (let i = nextMessages.length - 1; i >= 0; i -= 1) {
+              if (
+                nextMessages[i].role === "assistant" &&
+                nextMessages[i].streaming
+              ) {
+                nextMessages[i] = {
+                  ...nextMessages[i],
+                  content: accumulatedText,
+                };
+                break;
               }
-              return {
-                ...chat,
-                messages: nextMessages,
-                updatedAt: new Date().toISOString(),
-              };
-            }),
-          );
-        } catch (error) {
-          console.log("Parse error for chunk:", error);
-        }
-      }
-    }
+            }
+            return {
+              ...chat,
+              messages: nextMessages,
+              updatedAt: new Date().toISOString(),
+            };
+          }),
+        );
+      },
+    );
 
-    return accumulatedText || "sorry, nothing came back";
+    return content || "sorry, nothing came back";
   }
 
   async function handleSend(text) {
@@ -309,6 +307,7 @@ export default function App() {
         payload,
         abortControllerRef.current.signal,
         targetChatId,
+        selectedModel,
       );
 
       setChats((currentChats) =>
@@ -492,6 +491,12 @@ export default function App() {
     );
   }
 
+  function handleModelChange(nextModelId) {
+    if (busy) return;
+    if (!availableModels.some((model) => model.id === nextModelId)) return;
+    setSelectedModel(nextModelId);
+  }
+
   return (
     <div className="flex h-screen overflow-hidden bg-orange-50 text-gray-900">
       {sidebarOpen && (
@@ -646,8 +651,8 @@ export default function App() {
 
       <div className="flex min-h-0 w-full flex-1 flex-col">
         <div className="flex min-h-0 flex-1 flex-col p-3 sm:p-4 md:p-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
               <button
                 onClick={() => setSidebarOpen(true)}
                 className="rounded-lg p-2 hover:bg-gray-100 md:hidden"
@@ -667,7 +672,7 @@ export default function App() {
                 </svg>
               </button>
 
-              <div className="flex items-center gap-3 text-xl font-semibold text-gray-800 sm:text-2xl">
+              <div className="flex items-center gap-3 text-xl font-semibold text-gray-800 sm:text-2xl min-w-0">
                 pibot chat
                 <div className="group relative flex items-center">
                   <div
@@ -739,7 +744,9 @@ export default function App() {
               messages={activeMessages}
               onSend={handleSend}
               onStop={handleStop}
-              onClear={handleClearChat}
+              availableModels={availableModels}
+              selectedModel={selectedModel}
+              onModelChange={handleModelChange}
               busy={busy}
               status={status}
               isStorageFull={storageData.isFull}
