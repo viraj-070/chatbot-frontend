@@ -1,4 +1,17 @@
 @import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Dark mode configuration */
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  :root.dark {
+    color-scheme: dark;
+  }
+}
+
 html,
 body,
 #root {
@@ -7,6 +20,15 @@ body,
 
 body {
   margin: 0;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+body.light {
   background: #ffffff;
   color: #111827;
+}
+
+body.dark {
+  background: #0f172a;
+  color: #f1f5f9;
 }

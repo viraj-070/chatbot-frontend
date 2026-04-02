@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Moon, Sun, Trash2, Plus, X, Edit2 } from "lucide-react";
 import Chat from "./components/Chat";
 import {
   createProviderClient,
   DEFAULT_NVIDIA_MODEL_ID,
   DEFAULT_PROVIDER_ID,
 } from "./lib/providerAdapter";
+
+const THEME_STORAGE_KEY = "pibot_theme_v1";
 
 const STORAGE_KEY = "pibot_chat_store_v1";
 const LEGACY_STORAGE_KEY = "pibot_chat_history";
@@ -121,6 +124,9 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [editingChatId, setEditingChatId] = useState(null);
   const [editingTitle, setEditingTitle] = useState("");
+  const [theme, setTheme] = useState(() => {
+    return localStorage.getItem(THEME_STORAGE_KEY) || "light";
+  });
   const [selectedProvider] = useState(() => {
     return localStorage.getItem(PROVIDER_STORAGE_KEY) || DEFAULT_PROVIDER_ID;
   });
@@ -148,6 +154,20 @@ export default function App() {
   );
   const activeChat = chats.find((chat) => chat.id === activeChatId) || chats[0];
   const activeMessages = activeChat?.messages || [];
+
+  useEffect(() => {
+    const root = document.documentElement;
+    if (theme === "dark") {
+      root.classList.add("dark");
+      document.body.classList.remove("light");
+      document.body.classList.add("dark");
+    } else {
+      root.classList.remove("dark");
+      document.body.classList.add("light");
+      document.body.classList.remove("dark");
+    }
+    localStorage.setItem(THEME_STORAGE_KEY, theme);
+  }, [theme]);
 
   useEffect(() => {
     localStorage.setItem(PROVIDER_STORAGE_KEY, selectedProvider);
@@ -497,8 +517,12 @@ export default function App() {
     setSelectedModel(nextModelId);
   }
 
+  function handleThemeToggle() {
+    setTheme((prev) => (prev === "light" ? "dark" : "light"));
+  }
+
   return (
-    <div className="flex h-screen overflow-hidden bg-orange-50 text-gray-900">
+    <div className="flex h-screen overflow-hidden bg-orange-50 dark:bg-slate-950 text-gray-900 dark:text-slate-100 transition-colors">
       {sidebarOpen && (
         <div
           className="fixed inset-0 z-40 bg-black/50 md:hidden"
@@ -507,12 +531,14 @@ export default function App() {
       )}
 
       <aside
-        className={`fixed z-50 h-full w-72 transform border-r border-orange-200/50 bg-orange-50/80 p-4 transition-transform duration-300 ease-in-out md:relative md:z-auto ${
+        className={`fixed z-50 h-full w-72 transform border-r border-orange-200/50 dark:border-slate-700 bg-orange-50/80 dark:bg-slate-900/80 p-4 transition-all duration-300 ease-in-out md:relative md:z-auto ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
         }`}
       >
         <div className="mb-4 flex items-center justify-between md:hidden">
-          <span className="text-lg font-semibold text-gray-800">Chats</span>
+          <span className="text-lg font-semibold text-gray-800 dark:text-slate-100">
+            Chats
+          </span>
           <button
             onClick={() => setSidebarOpen(false)}
             className="rounded-lg p-2 hover:bg-gray-100"
@@ -534,13 +560,13 @@ export default function App() {
         </div>
 
         <div className="mb-3 flex items-center justify-between gap-2">
-          <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+          <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400">
             Chats
           </div>
           <button
             onClick={handleCreateChat}
             disabled={busy}
-            className="inline-flex items-center gap-1 rounded-lg border border-orange-200 bg-white px-2 py-1 text-xs font-medium text-orange-700 hover:bg-orange-50 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex items-center gap-1 rounded-lg border border-orange-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1 text-xs font-medium text-orange-700 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <svg
               className="h-3.5 w-3.5"
@@ -563,8 +589,8 @@ export default function App() {
                 key={chat.id}
                 className={`group rounded-xl border transition-colors ${
                   isActive
-                    ? "border-orange-300 bg-white shadow-sm"
-                    : "border-orange-100 bg-white/70 hover:bg-white"
+                    ? "border-orange-300 dark:border-orange-600 bg-white dark:bg-slate-800 shadow-sm"
+                    : "border-orange-100 dark:border-slate-700 bg-white/70 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-800"
                 }`}
               >
                 <div className="flex items-center gap-1 p-2">
@@ -582,7 +608,7 @@ export default function App() {
                       onBlur={() => handleSaveRename(chat.id)}
                       maxLength={60}
                       autoFocus
-                      className="flex-1 rounded-md border border-orange-200 bg-white px-2 py-1 text-sm outline-none focus:ring-2 focus:ring-orange-300"
+                      className="flex-1 rounded-md border border-orange-200 dark:border-slate-600 bg-white dark:bg-slate-700 px-2 py-1 text-sm outline-none focus:ring-2 focus:ring-orange-300 dark:focus:ring-orange-500 dark:text-slate-100"
                     />
                   ) : (
                     <button
@@ -592,7 +618,7 @@ export default function App() {
                         setSidebarOpen(false);
                       }}
                       disabled={busy}
-                      className="flex-1 truncate rounded-md px-2 py-1.5 text-left text-sm text-gray-700 hover:bg-orange-50 disabled:cursor-not-allowed"
+                      className="flex-1 truncate rounded-md px-2 py-1.5 text-left text-sm text-gray-700 dark:text-slate-200 hover:bg-orange-50 dark:hover:bg-slate-700 disabled:cursor-not-allowed"
                     >
                       {chat.title}
                     </button>
@@ -603,7 +629,7 @@ export default function App() {
                       <button
                         onClick={() => handleStartRename(chat.id, chat.title)}
                         disabled={busy}
-                        className="h-7 w-7 rounded-md text-gray-400 hover:bg-orange-50 hover:text-orange-600 disabled:opacity-40"
+                        className="h-7 w-7 rounded-md text-gray-400 dark:text-slate-500 hover:bg-orange-50 dark:hover:bg-slate-700 hover:text-orange-600 dark:hover:text-orange-400 disabled:opacity-40"
                         aria-label="Rename chat"
                       >
                         <svg
@@ -623,7 +649,7 @@ export default function App() {
                       <button
                         onClick={() => handleDeleteChat(chat.id)}
                         disabled={busy}
-                        className="h-7 w-7 rounded-md text-gray-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-40"
+                        className="h-7 w-7 rounded-md text-gray-400 dark:text-slate-500 hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-600 dark:hover:text-red-400 disabled:opacity-40"
                         aria-label="Delete chat"
                       >
                         <svg
@@ -655,7 +681,7 @@ export default function App() {
             <div className="flex items-center gap-3 min-w-0">
               <button
                 onClick={() => setSidebarOpen(true)}
-                className="rounded-lg p-2 hover:bg-gray-100 md:hidden"
+                className="rounded-lg p-2 hover:bg-gray-100 dark:hover:bg-slate-800 md:hidden"
               >
                 <svg
                   className="h-6 w-6"
@@ -672,27 +698,27 @@ export default function App() {
                 </svg>
               </button>
 
-              <div className="flex items-center gap-3 text-xl font-semibold text-gray-800 sm:text-2xl min-w-0">
-                pibot chat
+              <div className="flex items-center gap-3 text-xl font-semibold text-gray-800 dark:text-slate-100 sm:text-2xl min-w-0">
+                Chat
                 <div className="group relative flex items-center">
                   <div
-                    className={`cursor-help rounded-full border px-2.5 py-1 text-xs font-medium shadow-sm ${
+                    className={`cursor-help rounded-full border px-2.5 py-1 text-xs font-medium shadow-sm transition-colors ${
                       storageData.isFull
-                        ? "border-red-200 bg-red-50 text-red-700"
+                        ? "border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400"
                         : storageData.percentage > 80
-                          ? "border-orange-200 bg-orange-50 text-orange-700"
-                          : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
+                          ? "border-orange-200 dark:border-orange-900 bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-400"
+                          : "border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700"
                     }`}
                   >
                     {storageData.percentage.toFixed(2)}% Used
                   </div>
 
-                  <div className="pointer-events-none invisible absolute left-0 top-full z-50 mt-2 w-72 rounded-xl border border-gray-200 bg-white p-4 text-sm text-gray-700 opacity-0 shadow-lg transition-all duration-200 group-hover:visible group-hover:opacity-100">
-                    <div className="mb-3 flex items-center justify-between border-b border-gray-100 pb-3">
-                      <h4 className="font-semibold tracking-tight text-gray-900">
+                  <div className="pointer-events-none invisible absolute left-0 top-full z-50 mt-2 w-72 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 text-sm text-gray-700 dark:text-slate-200 opacity-0 shadow-lg dark:shadow-black/50 transition-all duration-200 group-hover:visible group-hover:opacity-100">
+                    <div className="mb-3 flex items-center justify-between border-b border-gray-100 dark:border-slate-700 pb-3">
+                      <h4 className="font-semibold tracking-tight text-gray-900 dark:text-slate-100">
                         Global Storage Usage
                       </h4>
-                      <span className="rounded-md bg-gray-100 px-2 py-0.5 font-mono text-xs text-gray-500">
+                      <span className="rounded-md bg-gray-100 dark:bg-slate-700 px-2 py-0.5 font-mono text-xs text-gray-500 dark:text-slate-400">
                         {(storageData.bytes / (1024 * 1024)).toFixed(2)} MB / 4
                         MB
                       </span>
@@ -700,14 +726,18 @@ export default function App() {
 
                     <div className="space-y-2">
                       <div className="flex items-center justify-between text-xs">
-                        <span className="text-gray-500">Saved Chats</span>
-                        <span className="font-medium text-gray-800">
+                        <span className="text-gray-500 dark:text-slate-400">
+                          Saved Chats
+                        </span>
+                        <span className="font-medium text-gray-800 dark:text-slate-200">
                           {chats.length}
                         </span>
                       </div>
                       <div className="flex items-center justify-between text-xs">
-                        <span className="text-gray-500">Current Capacity</span>
-                        <span className="font-medium text-gray-800">
+                        <span className="text-gray-500 dark:text-slate-400">
+                          Current Capacity
+                        </span>
+                        <span className="font-medium text-gray-800 dark:text-slate-200">
                           {storageData.percentage.toFixed(2)}%
                         </span>
                       </div>
@@ -717,26 +747,27 @@ export default function App() {
               </div>
             </div>
 
-            <button
-              onClick={handleClearChat}
-              disabled={busy || activeMessages.length === 0}
-              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              <svg
-                className="h-4 w-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleThemeToggle}
+                className="rounded-lg p-2 text-gray-500 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
+                title={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                />
-              </svg>
-              <span className="hidden sm:inline">Clear</span>
-            </button>
+                {theme === "light" ? (
+                  <Moon className="h-5 w-5" />
+                ) : (
+                  <Sun className="h-5 w-5" />
+                )}
+              </button>
+              <button
+                onClick={handleClearChat}
+                disabled={busy || activeMessages.length === 0}
+                className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-gray-500 dark:text-slate-400 transition-colors hover:bg-gray-100 dark:hover:bg-slate-800 hover:text-gray-700 dark:hover:text-slate-200 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <Trash2 className="h-4 w-4" />
+                <span className="hidden sm:inline">Clear</span>
+              </button>
+            </div>
           </div>
 
           <div className="mt-3 flex min-h-0 w-full flex-1 overflow-hidden bg-transparent sm:mt-4">
