@@ -19,7 +19,7 @@ export default function CodeBlock({ language, code, onOpenSandbox }) {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // Listen to theme changes
+  // theme change
   useEffect(() => {
     const observer = new MutationObserver(() => {
       setIsDark(document.documentElement.classList.contains("dark"));
@@ -67,7 +67,7 @@ export default function CodeBlock({ language, code, onOpenSandbox }) {
         </div>
       </div>
 
-      {/* Code Content*/}
+      {/* Code Content */}
       <div className="overflow-x-auto">
         <SyntaxHighlighter
           language={language || "text"}

@@ -1,8 +1,40 @@
-import { useEffect, useRef, useState, useCallback, useMemo } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  useCallback,
+  useMemo,
+  forwardRef,
+} from "react";
 import { Copy, Check, ArrowDown, Square, Send } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { Virtuoso } from "react-virtuoso";
 import CodeBlock from "./CodeBlock";
+
+const VirtualScroller = forwardRef(function VirtualScroller(props, ref) {
+  const { className = "", ...rest } = props;
+
+  return (
+    <div
+      ref={ref}
+      {...rest}
+      className={`custom-scrollbar px-3 py-4 sm:px-4 dark:bg-slate-950 ${className}`.trim()}
+    />
+  );
+});
+
+const VirtualList = forwardRef(function VirtualList(props, ref) {
+  const { className = "", ...rest } = props;
+
+  return (
+    <div
+      ref={ref}
+      {...rest}
+      className={`mx-auto w-full max-w-3xl ${className}`.trim()}
+    />
+  );
+});
 
 export default function Chat({
   messages,
@@ -23,9 +55,9 @@ export default function Chat({
   const [input, setInput] = useState("");
   const [copiedIndex, setCopiedIndex] = useState(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
-  const endRef = useRef(null);
+  const [flashMessageIndex, setFlashMessageIndex] = useState(null);
+  const virtuosoRef = useRef(null);
   const textareaRef = useRef(null);
-  const messagesContainerRef = useRef(null);
 
   // Auto-resize textarea
   const adjustTextareaHeight = useCallback(() => {
@@ -40,18 +72,18 @@ export default function Chat({
     adjustTextareaHeight();
   }, [input, adjustTextareaHeight]);
 
-  // Detect scroll position for scroll button visibility
-  const handleScroll = useCallback(() => {
-    const container = messagesContainerRef.current;
-    if (!container) return;
-    const { scrollTop, scrollHeight, clientHeight } = container;
-    const isAtBottom = scrollHeight - scrollTop - clientHeight < 100;
-    setShowScrollButton(!isAtBottom);
-  }, []);
+  const scrollToBottom = useCallback(
+    (behavior = "smooth") => {
+      if (!messages.length) return;
 
-  function scrollToBottom() {
-    endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }
+      virtuosoRef.current?.scrollToIndex({
+        index: messages.length - 1,
+        align: "end",
+        behavior,
+      });
+    },
+    [messages.length],
+  );
 
   function handleSubmit(event) {
     event.preventDefault();
@@ -62,9 +94,9 @@ export default function Chat({
       textareaRef.current.style.height = "44px";
     }
     onSend(trimmed);
-    // Only scroll on prompt submit
+    // Keep the newest user prompt in view after submit.
     setTimeout(() => {
-      endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+      scrollToBottom("smooth");
     }, 50);
   }
 
@@ -106,25 +138,154 @@ export default function Chat({
   );
 
   useEffect(() => {
+    if (!messages.length) {
+      setShowScrollButton(false);
+    }
+  }, [messages.length]);
+
+  useEffect(() => {
     if (!jumpTarget || typeof jumpTarget.messageIndex !== "number") return;
+    if (!messages.length) return;
 
-    const container = messagesContainerRef.current;
-    if (!container) return;
-
-    const targetNode = container.querySelector(
-      `[data-message-index="${jumpTarget.messageIndex}"]`,
+    const targetIndex = Math.max(
+      0,
+      Math.min(jumpTarget.messageIndex, messages.length - 1),
     );
 
-    if (!targetNode) return;
+    virtuosoRef.current?.scrollToIndex({
+      index: targetIndex,
+      align: "center",
+      behavior: "smooth",
+    });
 
-    targetNode.scrollIntoView({ behavior: "smooth", block: "center" });
-    targetNode.classList.add("search-jump-flash");
+    setFlashMessageIndex(targetIndex);
     const timer = window.setTimeout(() => {
-      targetNode.classList.remove("search-jump-flash");
+      setFlashMessageIndex((current) =>
+        current === targetIndex ? null : current,
+      );
     }, 1300);
 
     return () => window.clearTimeout(timer);
-  }, [jumpTarget]);
+  }, [jumpTarget, messages.length]);
+
+  function renderMessageItem(message, index) {
+    const mine = message.role === "user";
+    const isStreaming = message.streaming;
+    const hasThinking = hasThinkingTag(message.content);
+    const isMatched =
+      Boolean(searchQuery?.trim()) && matchedMessageIndexSet.has(index);
+    const isActiveMatch = activeSearchMessageIndex === index;
+    const isJumpFlash = flashMessageIndex === index;
+    const displayContent = hasThinking
+      ? extractResponse(message.content)
+      : message.content;
+
+    if (!mine && !isStreaming && !displayContent) {
+      return <div className="h-0" />;
+    }
+
+    return (
+      <div
+        data-message-index={index}
+        className={`search-message-anchor mb-2 flex rounded-2xl px-1 py-1 transition-colors ${
+          mine ? "justify-end" : "justify-start"
+        } ${isActiveMatch ? "search-match-active" : isMatched ? "search-match" : ""} ${
+          isJumpFlash ? "search-jump-flash" : ""
+        }`}
+      >
+        {mine ? (
+          <div className="flex max-w-[85%] flex-col items-end sm:max-w-[75%]">
+            <div className="w-fit whitespace-pre-wrap break-words rounded-lg bg-orange-500 px-4 py-2.5 text-sm text-white sm:text-base">
+              {displayContent}
+            </div>
+            <span className="mt-1.5 px-1 text-[10px] font-medium text-gray-400">
+              {formatTime(message.timestamp)}
+            </span>
+          </div>
+        ) : (
+          <div className="w-full rounded-lg border border-gray-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-900">
+            {isStreaming && !displayContent ? (
+              <div className="flex items-center gap-2 py-2">
+                <span className="text-xs text-gray-500 dark:text-slate-400 sm:text-sm">
+                  {status}
+                </span>
+                <div className="flex gap-1">
+                  <div className="h-1.5 w-1.5 animate-thinking rounded-full bg-orange-400" />
+                  <div
+                    className="h-1.5 w-1.5 animate-thinking rounded-full bg-orange-400"
+                    style={{ animationDelay: "0.2s" }}
+                  />
+                  <div
+                    className="h-1.5 w-1.5 animate-thinking rounded-full bg-orange-400"
+                    style={{ animationDelay: "0.4s" }}
+                  />
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="selectable-text prose prose-sm max-w-none text-sm text-gray-800 dark:prose-invert dark:text-slate-100 [&_h1]:mb-3 [&_h1]:mt-5 [&_h1]:text-2xl [&_h1]:font-bold [&_h2]:mb-2 [&_h2]:mt-5 [&_h2]:text-xl [&_h2]:font-semibold [&_h3]:mb-2 [&_h3]:mt-4 [&_h3]:text-lg [&_h3]:font-semibold [&_h4]:mb-2 [&_h4]:mt-4 [&_h4]:text-base [&_h4]:font-semibold [&_h5]:mb-2 [&_h5]:mt-3 [&_h5]:text-sm [&_h5]:font-semibold [&_h6]:mb-2 [&_h6]:mt-3 [&_h6]:text-sm [&_h6]:font-medium [&_p]:mb-3 [&_p]:leading-7 [&_ul]:mb-3 [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:mb-3 [&_ol]:list-decimal [&_ol]:pl-6 [&_li]:mb-1 [&_table]:min-w-full [&_table]:border-collapse [&_table]:text-sm [&_th]:border [&_th]:border-gray-300 dark:[&_th]:border-slate-700 [&_th]:bg-gray-100 dark:[&_th]:bg-slate-800 [&_th]:px-2 [&_th]:py-1 [&_td]:border [&_td]:border-gray-300 dark:[&_td]:border-slate-700 [&_td]:px-2 [&_td]:py-1 [&_blockquote]:mb-3 [&_blockquote]:border-l-4 [&_blockquote]:border-gray-300 dark:[&_blockquote]:border-slate-600 [&_blockquote]:pl-3 [&_blockquote]:italic">
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      table({ children, ...props }) {
+                        return (
+                          <div className="-mx-1 my-3 overflow-x-auto px-1">
+                            <table {...props}>{children}</table>
+                          </div>
+                        );
+                      },
+                      code({ inline, className, children, ...props }) {
+                        const match = /language-(\w+)/.exec(className || "");
+                        const language = match ? match[1] : "";
+                        const codeContent = String(children).replace(/\n$/, "");
+
+                        return !inline && match ? (
+                          <CodeBlock
+                            language={language}
+                            code={codeContent}
+                            onOpenSandbox={onOpenSandboxFromCode}
+                          />
+                        ) : (
+                          <code
+                            className="break-all rounded bg-gray-100 px-1.5 py-0.5 font-mono text-xs text-pink-700 dark:bg-slate-800 dark:text-orange-300 sm:text-sm"
+                            {...props}
+                          >
+                            {children}
+                          </code>
+                        );
+                      },
+                    }}
+                  >
+                    {displayContent}
+                  </ReactMarkdown>
+                </div>
+                {isStreaming && displayContent && (
+                  <span className="streaming-cursor" />
+                )}
+                <div className="mt-1.5 flex items-center gap-2">
+                  <span className="text-[10px] text-gray-400 dark:text-slate-500">
+                    {formatTime(message.timestamp)}
+                  </span>
+                  {!isStreaming && displayContent && (
+                    <button
+                      onClick={() => copyToClipboard(displayContent, index)}
+                      className="rounded p-1 text-gray-500 transition-colors hover:bg-gray-100 dark:text-slate-400 dark:hover:bg-slate-800"
+                    >
+                      {copiedIndex === index ? (
+                        <Check className="h-3.5 w-3.5 text-green-500 dark:text-green-400" />
+                      ) : (
+                        <Copy className="h-3.5 w-3.5 text-orange-400 hover:text-orange-600 dark:text-orange-500 dark:hover:text-orange-400" />
+                      )}
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-full min-h-0 w-full flex-col bg-gray-50 dark:bg-slate-950">
@@ -190,185 +351,62 @@ export default function Chat({
       `}</style>
 
       <div className="chat-container flex min-h-0 w-full flex-1 flex-col dark:bg-slate-950">
-        {/* Messages container */}
-        <div
-          ref={messagesContainerRef}
-          onScroll={handleScroll}
-          className="relative flex-1 overflow-y-auto custom-scrollbar px-3 py-4 sm:px-4 dark:bg-slate-950"
-        >
-          <div className="w-full max-w-3xl mx-auto space-y-4">
-            {messages.length === 0 && (
-              <div className="mx-auto mt-12 w-full max-w-2xl rounded-lg border border-gray-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
-                <h2 className="text-lg font-semibold text-gray-800 dark:text-slate-100">
-                  Start a conversation
-                </h2>
-                <p className="mt-1 text-sm text-gray-600 dark:text-slate-400">
-                  Ask anything below, or click one of these starter prompts.
-                </p>
+        <div className="relative flex-1 dark:bg-slate-950">
+          {messages.length === 0 ? (
+            <div className="custom-scrollbar h-full overflow-y-auto px-3 py-4 sm:px-4 dark:bg-slate-950">
+              <div className="mx-auto w-full max-w-3xl space-y-4">
+                <div className="mx-auto mt-12 w-full max-w-2xl rounded-lg border border-gray-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
+                  <h2 className="text-lg font-semibold text-gray-800 dark:text-slate-100">
+                    Start a conversation
+                  </h2>
+                  <p className="mt-1 text-sm text-gray-600 dark:text-slate-400">
+                    Ask anything below, or click one of these starter prompts.
+                  </p>
 
-                <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  {[
-                    "Build a simple React component example",
-                    "Explain this code in beginner language",
-                    "Help me debug my frontend error",
-                    "Write HTML, CSS and JS demo code",
-                  ].map((suggestion, i) => (
-                    <button
-                      key={i}
-                      onClick={() => onSend(suggestion)}
-                      className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-left text-sm text-gray-700 transition-colors hover:bg-gray-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-                    >
-                      {suggestion}
-                    </button>
-                  ))}
+                  <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    {[
+                      "Build a simple React component example",
+                      "Explain this code in beginner language",
+                      "Help me debug my frontend error",
+                      "Write HTML, CSS and JS demo code",
+                    ].map((suggestion, i) => (
+                      <button
+                        key={i}
+                        onClick={() => onSend(suggestion)}
+                        className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-left text-sm text-gray-700 transition-colors hover:bg-gray-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                      >
+                        {suggestion}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
-            )}
-            {messages.map((message, index) => {
-              const mine = message.role === "user";
-              const isStreaming = message.streaming;
-              const hasThinking = hasThinkingTag(message.content);
-              const isMatched =
-                Boolean(searchQuery?.trim()) &&
-                matchedMessageIndexSet.has(index);
-              const isActiveMatch = activeSearchMessageIndex === index;
-              const displayContent = hasThinking
-                ? extractResponse(message.content)
-                : message.content;
+            </div>
+          ) : (
+            <Virtuoso
+              ref={virtuosoRef}
+              className="h-full"
+              data={messages}
+              components={{ Scroller: VirtualScroller, List: VirtualList }}
+              atBottomStateChange={(isAtBottom) => {
+                setShowScrollButton(!isAtBottom);
+              }}
+              followOutput={(isAtBottom) => (isAtBottom ? "smooth" : false)}
+              itemContent={(index, message) => renderMessageItem(message, index)}
+            />
+          )}
 
-              if (!mine && !isStreaming && !displayContent) return null;
-
-              return (
-                <div
-                  key={index}
-                  data-message-index={index}
-                  className={`search-message-anchor flex ${mine ? "justify-end" : "justify-start"} mb-2 rounded-2xl px-1 py-1 transition-colors ${
-                    isActiveMatch
-                      ? "search-match-active"
-                      : isMatched
-                        ? "search-match"
-                        : ""
-                  }`}
-                >
-                  {mine ? (
-                    <div className="flex flex-col items-end max-w-[85%] sm:max-w-[75%]">
-                      <div className="w-fit whitespace-pre-wrap break-words rounded-lg bg-orange-500 px-4 py-2.5 text-sm text-white sm:text-base">
-                        {displayContent}
-                      </div>
-                      <span className="text-[10px] text-gray-400 mt-1.5 px-1 font-medium">
-                        {formatTime(message.timestamp)}
-                      </span>
-                    </div>
-                  ) : (
-                    <div className="w-full rounded-lg border border-gray-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-900">
-                      {isStreaming && !displayContent ? (
-                        <div className="flex items-center gap-2 py-2">
-                          <span className="text-xs sm:text-sm text-gray-500 dark:text-slate-400">
-                            {status}
-                          </span>
-                          <div className="flex gap-1">
-                            <div className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-thinking"></div>
-                            <div
-                              className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-thinking"
-                              style={{ animationDelay: "0.2s" }}
-                            ></div>
-                            <div
-                              className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-thinking"
-                              style={{ animationDelay: "0.4s" }}
-                            ></div>
-                          </div>
-                        </div>
-                      ) : (
-                        <>
-                          <div className="selectable-text prose prose-sm max-w-none text-sm text-gray-800 dark:prose-invert dark:text-slate-100 [&_h1]:mb-3 [&_h1]:mt-5 [&_h1]:text-2xl [&_h1]:font-bold [&_h2]:mb-2 [&_h2]:mt-5 [&_h2]:text-xl [&_h2]:font-semibold [&_h3]:mb-2 [&_h3]:mt-4 [&_h3]:text-lg [&_h3]:font-semibold [&_h4]:mb-2 [&_h4]:mt-4 [&_h4]:text-base [&_h4]:font-semibold [&_h5]:mb-2 [&_h5]:mt-3 [&_h5]:text-sm [&_h5]:font-semibold [&_h6]:mb-2 [&_h6]:mt-3 [&_h6]:text-sm [&_h6]:font-medium [&_p]:mb-3 [&_p]:leading-7 [&_ul]:mb-3 [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:mb-3 [&_ol]:list-decimal [&_ol]:pl-6 [&_li]:mb-1 [&_table]:min-w-full [&_table]:border-collapse [&_table]:text-sm [&_th]:border [&_th]:border-gray-300 dark:[&_th]:border-slate-700 [&_th]:bg-gray-100 dark:[&_th]:bg-slate-800 [&_th]:px-2 [&_th]:py-1 [&_td]:border [&_td]:border-gray-300 dark:[&_td]:border-slate-700 [&_td]:px-2 [&_td]:py-1 [&_blockquote]:mb-3 [&_blockquote]:border-l-4 [&_blockquote]:border-gray-300 dark:[&_blockquote]:border-slate-600 [&_blockquote]:pl-3 [&_blockquote]:italic">
-                            <ReactMarkdown
-                              remarkPlugins={[remarkGfm]}
-                              components={{
-                                table({ children, ...props }) {
-                                  return (
-                                    <div className="overflow-x-auto my-3 -mx-1 px-1">
-                                      <table {...props}>{children}</table>
-                                    </div>
-                                  );
-                                },
-                                code({
-                                  inline,
-                                  className,
-                                  children,
-                                  ...props
-                                }) {
-                                  const match = /language-(\w+)/.exec(
-                                    className || "",
-                                  );
-                                  const language = match ? match[1] : "";
-                                  const codeContent = String(children).replace(
-                                    /\n$/,
-                                    "",
-                                  );
-
-                                  return !inline && match ? (
-                                    <CodeBlock
-                                      language={language}
-                                      code={codeContent}
-                                      onOpenSandbox={onOpenSandboxFromCode}
-                                    />
-                                  ) : (
-                                    <code
-                                      className="break-all rounded bg-gray-100 px-1.5 py-0.5 font-mono text-xs text-pink-700 dark:bg-slate-800 dark:text-orange-300 sm:text-sm"
-                                      {...props}
-                                    >
-                                      {children}
-                                    </code>
-                                  );
-                                },
-                              }}
-                            >
-                              {displayContent}
-                            </ReactMarkdown>
-                          </div>
-                          {isStreaming && displayContent && (
-                            <span className="streaming-cursor"></span>
-                          )}
-                          <div className="flex items-center gap-2 mt-1.5">
-                            <span className="text-[10px] text-gray-400 dark:text-slate-500">
-                              {formatTime(message.timestamp)}
-                            </span>
-                            {!isStreaming && displayContent && (
-                              <button
-                                onClick={() =>
-                                  copyToClipboard(displayContent, index)
-                                }
-                                className="rounded p-1 text-gray-500 transition-colors hover:bg-gray-100 dark:text-slate-400 dark:hover:bg-slate-800"
-                              >
-                                {copiedIndex === index ? (
-                                  <Check className="w-3.5 h-3.5 text-green-500 dark:text-green-400" />
-                                ) : (
-                                  <Copy className="w-3.5 h-3.5 text-orange-400 dark:text-orange-500 hover:text-orange-600 dark:hover:text-orange-400" />
-                                )}
-                              </button>
-                            )}
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-            <div ref={endRef} />
-          </div>
+          {/* Scroll to bottom button */}
+          {showScrollButton && messages.length > 0 && (
+            <button
+              type="button"
+              onClick={() => scrollToBottom("smooth")}
+              className="absolute bottom-4 right-4 z-20 flex h-9 w-9 items-center justify-center rounded-md bg-gray-800 text-white transition-colors hover:bg-gray-700 dark:bg-slate-700 dark:hover:bg-slate-600"
+            >
+              <ArrowDown className="h-4 w-4" />
+            </button>
+          )}
         </div>
-
-        {/* Scroll to bottom button */}
-        {showScrollButton && (
-          <button
-            type="button"
-            onClick={scrollToBottom}
-            className="absolute bottom-4 right-4 z-20 flex h-9 w-9 items-center justify-center rounded-md bg-gray-800 text-white transition-colors hover:bg-gray-700 dark:bg-slate-700 dark:hover:bg-slate-600"
-          >
-            <ArrowDown className="h-4 w-4" />
-          </button>
-        )}
       </div>
 
       {/* Input area */}
