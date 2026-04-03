@@ -695,7 +695,7 @@ export default function App() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-orange-50 dark:bg-slate-950 text-gray-900 dark:text-slate-100 transition-colors">
+    <div className="flex h-screen overflow-hidden bg-gray-100 text-gray-900 transition-colors dark:bg-slate-950 dark:text-slate-100">
       {sidebarOpen && (
         <div
           className="fixed inset-0 z-40 bg-black/50 md:hidden"
@@ -704,7 +704,7 @@ export default function App() {
       )}
 
       <aside
-        className={`fixed z-50 h-full w-72 transform border-r border-orange-200/50 dark:border-slate-700 bg-orange-50/80 dark:bg-slate-900/80 p-4 transition-all duration-300 ease-in-out md:relative md:z-auto ${
+        className={`fixed z-50 h-full w-72 transform border-r border-gray-200 bg-white p-4 transition-all duration-300 ease-in-out dark:border-slate-700 dark:bg-slate-900 md:relative md:z-auto ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
         }`}
       >
@@ -714,7 +714,7 @@ export default function App() {
           </span>
           <button
             onClick={() => setSidebarOpen(false)}
-            className="rounded-lg p-2 hover:bg-gray-100"
+            className="rounded-lg p-2 hover:bg-gray-100 dark:hover:bg-slate-800"
           >
             <svg
               className="h-5 w-5"
@@ -739,7 +739,7 @@ export default function App() {
           <button
             onClick={handleCreateChat}
             disabled={busy}
-            className="inline-flex items-center gap-1 rounded-lg border border-orange-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1 text-xs font-medium text-orange-700 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex items-center gap-1 rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
           >
             <svg
               className="h-3.5 w-3.5"
@@ -762,8 +762,8 @@ export default function App() {
                 key={chat.id}
                 className={`group rounded-xl border transition-colors ${
                   isActive
-                    ? "border-orange-300 dark:border-orange-600 bg-white dark:bg-slate-800 shadow-sm"
-                    : "border-orange-100 dark:border-slate-700 bg-white/70 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-800"
+                    ? "border-gray-300 bg-gray-50 dark:border-slate-600 dark:bg-slate-800"
+                    : "border-gray-200 bg-white hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-900 dark:hover:bg-slate-800"
                 }`}
               >
                 <div className="flex items-center gap-1 p-2">
@@ -791,7 +791,7 @@ export default function App() {
                         setSidebarOpen(false);
                       }}
                       disabled={busy}
-                      className="flex-1 truncate rounded-md px-2 py-1.5 text-left text-sm text-gray-700 dark:text-slate-200 hover:bg-orange-50 dark:hover:bg-slate-700 disabled:cursor-not-allowed"
+                      className="flex-1 truncate rounded-md px-2 py-1.5 text-left text-sm text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed dark:text-slate-200 dark:hover:bg-slate-700"
                     >
                       {chat.title}
                     </button>

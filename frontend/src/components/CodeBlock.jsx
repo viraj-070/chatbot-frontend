@@ -32,16 +32,15 @@ export default function CodeBlock({ language, code, onOpenSandbox }) {
   }, []);
 
   return (
-    <div className="relative my-3 sm:my-4 rounded-lg overflow-hidden border border-gray-700 dark:border-slate-700 bg-[#1e1e1e] dark:bg-[#0f172a]">
-      {/* Sticky Header */}
-      <div className="sticky top-0 z-10 flex items-center justify-between bg-[#2d2d2d] dark:bg-[#1e293b] px-3 sm:px-4 py-1.5 sm:py-2 border-b border-gray-700 dark:border-slate-700">
-        <span className="text-xs font-medium text-gray-300 dark:text-slate-400 uppercase tracking-wide">
+    <div className="my-3 overflow-hidden rounded-md border border-gray-300 bg-white dark:border-slate-700 dark:bg-slate-900 sm:my-4">
+      <div className="flex items-center justify-between border-b border-gray-200 bg-gray-100 px-3 py-2 dark:border-slate-700 dark:bg-slate-800 sm:px-4">
+        <span className="text-xs font-medium uppercase tracking-wide text-gray-600 dark:text-slate-300">
           {language || "code"}
         </span>
         <div className="flex items-center gap-1.5">
           <button
             onClick={() => onOpenSandbox?.(language || "", code)}
-            className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1 sm:py-1.5 text-xs font-medium text-orange-300 bg-[#1e1e1e] dark:bg-[#0f172a] hover:bg-[#252526] dark:hover:bg-slate-800 rounded transition-colors border border-orange-500/40 dark:border-orange-500/30"
+            className="flex items-center gap-1.5 rounded border border-gray-300 bg-white px-2 py-1 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600 sm:gap-2 sm:px-3 sm:py-1.5"
           >
             <Play className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             <span className="hidden sm:inline">Open in Sandbox</span>
@@ -49,12 +48,12 @@ export default function CodeBlock({ language, code, onOpenSandbox }) {
           </button>
           <button
             onClick={handleCopy}
-            className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1 sm:py-1.5 text-xs font-medium text-gray-300 dark:text-slate-400 bg-[#1e1e1e] dark:bg-[#0f172a] hover:bg-[#252526] dark:hover:bg-slate-800 rounded transition-colors border border-gray-600 dark:border-slate-700"
+            className="flex items-center gap-1.5 rounded border border-gray-300 bg-white px-2 py-1 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600 sm:gap-2 sm:px-3 sm:py-1.5"
           >
             {copied ? (
               <>
-                <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-green-400 dark:text-green-500" />
-                <span className="text-green-400 dark:text-green-500 hidden xs:inline">
+                <Check className="h-3.5 w-3.5 text-green-600 dark:text-green-400 sm:h-4 sm:w-4" />
+                <span className="hidden text-green-600 dark:text-green-400 xs:inline">
                   Copied!
                 </span>
               </>
@@ -75,9 +74,9 @@ export default function CodeBlock({ language, code, onOpenSandbox }) {
           style={isDark ? vscDarkPlus : vs}
           customStyle={{
             margin: 0,
-            padding: "0.75rem",
-            background: isDark ? "#0f172a" : "#ffffff",
-            fontSize: "inherit",
+            padding: "0.9rem",
+            background: "transparent",
+            fontSize: "0.9rem",
             lineHeight: "1.5",
             color: isDark ? "#e2e8f0" : "#1e293b",
           }}
