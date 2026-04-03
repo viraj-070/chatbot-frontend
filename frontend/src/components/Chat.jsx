@@ -12,6 +12,10 @@ import remarkGfm from "remark-gfm";
 import { Virtuoso } from "react-virtuoso";
 import CodeBlock from "./CodeBlock";
 
+const SPACER_COLLAPSE_MS = 760;
+const SPACER_COLLAPSE_EASING = "cubic-bezier(0.16, 1, 0.3, 1)";
+const BASE_BOTTOM_GAP = 40;
+
 const VirtualScroller = forwardRef(function VirtualScroller(props, ref) {
   const { className = "", ...rest } = props;
 
@@ -19,7 +23,7 @@ const VirtualScroller = forwardRef(function VirtualScroller(props, ref) {
     <div
       ref={ref}
       {...rest}
-      className={`custom-scrollbar px-3 py-4 sm:px-4 dark:bg-slate-950 ${className}`.trim()}
+      className={`chat-virtual-scroller custom-scrollbar overflow-x-hidden px-3 pb-4 pt-0 sm:px-4 dark:bg-slate-950 ${className}`.trim()}
     />
   );
 });
@@ -31,7 +35,7 @@ const VirtualList = forwardRef(function VirtualList(props, ref) {
     <div
       ref={ref}
       {...rest}
-      className={`mx-auto w-full max-w-3xl ${className}`.trim()}
+      className={`mx-auto w-full max-w-3xl min-w-0 ${className}`.trim()}
     />
   );
 });
@@ -56,8 +60,12 @@ export default function Chat({
   const [copiedIndex, setCopiedIndex] = useState(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [flashMessageIndex, setFlashMessageIndex] = useState(null);
+  const [streamingSpacerHeight, setStreamingSpacerHeight] = useState(0);
+  const [isSpacerMode, setIsSpacerMode] = useState(false);
   const virtuosoRef = useRef(null);
   const textareaRef = useRef(null);
+  const pinPromptOnNextStreamRef = useRef(false);
+  const spacerCollapseTimerRef = useRef(null);
 
   // Auto-resize textarea
   const adjustTextareaHeight = useCallback(() => {
@@ -85,6 +93,14 @@ export default function Chat({
     [messages.length],
   );
 
+  function sendPrompt(text) {
+    const trimmed = String(text || "").trim();
+    if (!trimmed || busy || isStorageFull) return;
+
+    pinPromptOnNextStreamRef.current = true;
+    onSend(trimmed);
+  }
+
   function handleSubmit(event) {
     event.preventDefault();
     const trimmed = input.trim();
@@ -93,11 +109,7 @@ export default function Chat({
     if (textareaRef.current) {
       textareaRef.current.style.height = "44px";
     }
-    onSend(trimmed);
-    // Keep the newest user prompt in view after submit.
-    setTimeout(() => {
-      scrollToBottom("smooth");
-    }, 50);
+    sendPrompt(trimmed);
   }
 
   function handleKeyDown(event) {
@@ -144,6 +156,14 @@ export default function Chat({
   }, [messages.length]);
 
   useEffect(() => {
+    return () => {
+      if (spacerCollapseTimerRef.current) {
+        window.clearTimeout(spacerCollapseTimerRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
     if (!jumpTarget || typeof jumpTarget.messageIndex !== "number") return;
     if (!messages.length) return;
 
@@ -168,6 +188,91 @@ export default function Chat({
     return () => window.clearTimeout(timer);
   }, [jumpTarget, messages.length]);
 
+  useEffect(() => {
+    if (!messages.length) {
+      if (spacerCollapseTimerRef.current) {
+        window.clearTimeout(spacerCollapseTimerRef.current);
+        spacerCollapseTimerRef.current = null;
+      }
+      setStreamingSpacerHeight(0);
+      setIsSpacerMode(false);
+      pinPromptOnNextStreamRef.current = false;
+      return;
+    }
+
+    const lastMessage = messages[messages.length - 1];
+    const previousMessage = messages[messages.length - 2];
+    const isLastAssistantStreaming =
+      lastMessage?.role === "assistant" && Boolean(lastMessage?.streaming);
+
+    if (
+      pinPromptOnNextStreamRef.current &&
+      isLastAssistantStreaming &&
+      previousMessage?.role === "user"
+    ) {
+      const promptIndex = messages.length - 2;
+      const scrollerElement =
+        typeof document !== "undefined"
+          ? document.querySelector(".chat-virtual-scroller")
+          : null;
+      const fallbackHeight =
+        typeof window !== "undefined"
+          ? Math.round(window.innerHeight * 0.7)
+          : 600;
+      const viewportHeight = scrollerElement?.clientHeight || fallbackHeight;
+      const dynamicSpacer = Math.max(viewportHeight + 180, 520);
+
+      if (spacerCollapseTimerRef.current) {
+        window.clearTimeout(spacerCollapseTimerRef.current);
+        spacerCollapseTimerRef.current = null;
+      }
+
+      setIsSpacerMode(true);
+      setStreamingSpacerHeight(dynamicSpacer);
+
+      requestAnimationFrame(() => {
+        virtuosoRef.current?.scrollToIndex({
+          index: promptIndex,
+          align: "start",
+          behavior: "auto",
+        });
+
+        window.setTimeout(() => {
+          virtuosoRef.current?.scrollToIndex({
+            index: promptIndex,
+            align: "start",
+            behavior: "auto",
+          });
+        }, 90);
+      });
+
+      pinPromptOnNextStreamRef.current = false;
+      return;
+    }
+
+    if (isLastAssistantStreaming && spacerCollapseTimerRef.current) {
+      window.clearTimeout(spacerCollapseTimerRef.current);
+      spacerCollapseTimerRef.current = null;
+    }
+
+    if (
+      !isLastAssistantStreaming &&
+      isSpacerMode &&
+      streamingSpacerHeight !== 0
+    ) {
+      setStreamingSpacerHeight(0);
+
+      if (spacerCollapseTimerRef.current) {
+        window.clearTimeout(spacerCollapseTimerRef.current);
+      }
+
+      spacerCollapseTimerRef.current = window.setTimeout(() => {
+        setIsSpacerMode(false);
+        spacerCollapseTimerRef.current = null;
+      }, SPACER_COLLAPSE_MS + 40);
+    }
+  }, [messages, streamingSpacerHeight, isSpacerMode]);
+
   function renderMessageItem(message, index) {
     const mine = message.role === "user";
     const isStreaming = message.streaming;
@@ -187,7 +292,7 @@ export default function Chat({
     return (
       <div
         data-message-index={index}
-        className={`search-message-anchor mb-2 flex rounded-2xl px-1 py-1 transition-colors ${
+        className={`search-message-anchor flex max-w-full rounded-2xl px-1 py-1 transition-colors ${
           mine ? "justify-end" : "justify-start"
         } ${isActiveMatch ? "search-match-active" : isMatched ? "search-match" : ""} ${
           isJumpFlash ? "search-jump-flash" : ""
@@ -203,7 +308,7 @@ export default function Chat({
             </span>
           </div>
         ) : (
-          <div className="w-full rounded-lg border border-gray-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-900">
+          <div className="w-full min-w-0 rounded-lg border border-gray-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-900">
             {isStreaming && !displayContent ? (
               <div className="flex items-center gap-2 py-2">
                 <span className="text-xs text-gray-500 dark:text-slate-400 sm:text-sm">
@@ -341,6 +446,19 @@ export default function Chat({
         .chat-container .selectable-text * {
           cursor: text;
         }
+        .chat-container .selectable-text button,
+        .chat-container .selectable-text button *,
+        .chat-container .selectable-text [role="button"],
+        .chat-container .selectable-text [role="button"] *,
+        .chat-container .selectable-text a,
+        .chat-container .selectable-text a * {
+          cursor: pointer;
+        }
+        .chat-container .selectable-text button:disabled,
+        .chat-container .selectable-text button:disabled *,
+        .chat-container .selectable-text [role="button"][aria-disabled="true"] {
+          cursor: not-allowed;
+        }
         .chat-container button {
           cursor: pointer;
         }
@@ -372,7 +490,7 @@ export default function Chat({
                     ].map((suggestion, i) => (
                       <button
                         key={i}
-                        onClick={() => onSend(suggestion)}
+                        onClick={() => sendPrompt(suggestion)}
                         className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-left text-sm text-gray-700 transition-colors hover:bg-gray-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
                       >
                         {suggestion}
@@ -387,12 +505,29 @@ export default function Chat({
               ref={virtuosoRef}
               className="h-full"
               data={messages}
-              components={{ Scroller: VirtualScroller, List: VirtualList }}
+              components={{
+                Scroller: VirtualScroller,
+                List: VirtualList,
+                Footer: () => (
+                  <div
+                    aria-hidden="true"
+                    style={{
+                      height: `${BASE_BOTTOM_GAP + streamingSpacerHeight}px`,
+                      transition: `height ${SPACER_COLLAPSE_MS}ms ${SPACER_COLLAPSE_EASING}`,
+                    }}
+                  />
+                ),
+              }}
               atBottomStateChange={(isAtBottom) => {
                 setShowScrollButton(!isAtBottom);
               }}
-              followOutput={(isAtBottom) => (isAtBottom ? "smooth" : false)}
-              itemContent={(index, message) => renderMessageItem(message, index)}
+              followOutput={(isAtBottom) => {
+                if (isSpacerMode) return false;
+                return isAtBottom ? "smooth" : false;
+              }}
+              itemContent={(index, message) =>
+                renderMessageItem(message, index)
+              }
             />
           )}
 

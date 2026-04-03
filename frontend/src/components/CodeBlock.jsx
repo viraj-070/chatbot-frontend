@@ -38,14 +38,18 @@ export default function CodeBlock({ language, code, onOpenSandbox }) {
           {language || "code"}
         </span>
         <div className="flex items-center gap-1.5">
-          <button
-            onClick={() => onOpenSandbox?.(language || "", code)}
-            className="flex items-center gap-1.5 rounded border border-gray-300 bg-white px-2 py-1 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600 sm:gap-2 sm:px-3 sm:py-1.5"
-          >
-            <Play className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            <span className="hidden sm:inline">Open in Sandbox</span>
-            <span className="sm:hidden">Run</span>
-          </button>
+          {(language === "html" ||
+            language === "css" ||
+            language === "javascript") && (
+            <button
+              onClick={() => onOpenSandbox?.(language || "", code)}
+              className="flex items-center gap-1.5 rounded border border-gray-300 bg-white px-2 py-1 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600 sm:gap-2 sm:px-3 sm:py-1.5"
+            >
+              <Play className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <span className="hidden sm:inline">Open in Sandbox</span>
+              <span className="sm:hidden">Run</span>
+            </button>
+          )}
           <button
             onClick={handleCopy}
             className="flex items-center gap-1.5 rounded border border-gray-300 bg-white px-2 py-1 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600 sm:gap-2 sm:px-3 sm:py-1.5"
