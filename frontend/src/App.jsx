@@ -1,11 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Moon, Sun, Trash2, Plus, X, Edit2 } from "lucide-react";
+import { Code2, Moon, Search, Sun, Trash2 } from "lucide-react";
 import Chat from "./components/Chat";
+import SearchPanel from "./components/SearchPanel";
+import SandboxPanel from "./components/SandboxPanel";
 import {
   createProviderClient,
   DEFAULT_NVIDIA_MODEL_ID,
   DEFAULT_PROVIDER_ID,
 } from "./lib/providerAdapter";
+import { getMessageSearchResults } from "./lib/searchUtils";
+import {
+  getLatestSandboxSnippets,
+  getPreferredSandboxTab,
+  normalizeSandboxLanguage,
+} from "./lib/sandboxUtils";
 
 const THEME_STORAGE_KEY = "pibot_theme_v1";
 
@@ -134,6 +142,21 @@ export default function App() {
     return localStorage.getItem(MODEL_STORAGE_KEY) || DEFAULT_NVIDIA_MODEL_ID;
   });
   const [availableModels, setAvailableModels] = useState([]);
+  const [searchPanelOpen, setSearchPanelOpen] = useState(false);
+  const [searchPanelMinimized, setSearchPanelMinimized] = useState(false);
+  const [searchPanelPosition, setSearchPanelPosition] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchRoleFilter, setSearchRoleFilter] = useState("all");
+  const [activeSearchResultIndex, setActiveSearchResultIndex] = useState(0);
+  const [jumpTarget, setJumpTarget] = useState(null);
+  const [sandboxPanelOpen, setSandboxPanelOpen] = useState(false);
+  const [sandboxCode, setSandboxCode] = useState({
+    html: "",
+    css: "",
+    js: "",
+  });
+  const [sandboxActiveTab, setSandboxActiveTab] = useState("html");
+  const [sandboxAutoRun, setSandboxAutoRun] = useState(true);
   const [storageData, setStorageData] = useState(() => {
     const stats = getStoreStats(initialStore.chats, initialStore.activeChatId);
     return {
@@ -144,6 +167,7 @@ export default function App() {
   });
 
   const abortControllerRef = useRef(null);
+  const processedAssistantMessagesRef = useRef(new Set());
   const providerClient = useMemo(
     () =>
       createProviderClient({
@@ -153,7 +177,19 @@ export default function App() {
     [selectedProvider],
   );
   const activeChat = chats.find((chat) => chat.id === activeChatId) || chats[0];
-  const activeMessages = activeChat?.messages || [];
+  const activeMessages = useMemo(
+    () => activeChat?.messages || [],
+    [activeChat],
+  );
+  const searchResults = useMemo(
+    () =>
+      getMessageSearchResults(activeMessages, searchQuery, searchRoleFilter),
+    [activeMessages, searchQuery, searchRoleFilter],
+  );
+  const matchedMessageIndexes = useMemo(
+    () => [...new Set(searchResults.map((result) => result.messageIndex))],
+    [searchResults],
+  );
 
   useEffect(() => {
     const root = document.documentElement;
@@ -241,6 +277,93 @@ export default function App() {
       }
     }
   }, [activeChatId, chats]);
+
+  useEffect(() => {
+    function handleShortcuts(event) {
+      const isSearchShortcut =
+        (event.ctrlKey || event.metaKey) &&
+        event.shiftKey &&
+        event.key.toLowerCase() === "f";
+      const isSandboxShortcut =
+        (event.ctrlKey || event.metaKey) &&
+        event.shiftKey &&
+        event.key.toLowerCase() === "e";
+
+      if (isSearchShortcut) {
+        event.preventDefault();
+        setSearchPanelOpen((prev) => !prev);
+        setSearchPanelMinimized(false);
+        return;
+      }
+
+      if (isSandboxShortcut) {
+        event.preventDefault();
+        setSandboxPanelOpen((prev) => !prev);
+        return;
+      }
+
+      if (event.key === "Escape") {
+        if (searchPanelOpen) setSearchPanelOpen(false);
+        if (sandboxPanelOpen) setSandboxPanelOpen(false);
+      }
+    }
+
+    window.addEventListener("keydown", handleShortcuts);
+    return () => window.removeEventListener("keydown", handleShortcuts);
+  }, [sandboxPanelOpen, searchPanelOpen]);
+
+  useEffect(() => {
+    if (!searchResults.length) {
+      setActiveSearchResultIndex(0);
+      return;
+    }
+
+    if (activeSearchResultIndex >= searchResults.length) {
+      setActiveSearchResultIndex(searchResults.length - 1);
+    }
+  }, [activeSearchResultIndex, searchResults]);
+
+  useEffect(() => {
+    setActiveSearchResultIndex(0);
+  }, [activeChatId, searchQuery, searchRoleFilter]);
+
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setJumpTarget(null);
+    }
+  }, [searchQuery]);
+
+  useEffect(() => {
+    const lastIndex = activeMessages.length - 1;
+    if (lastIndex < 0) return;
+
+    const lastMessage = activeMessages[lastIndex];
+    if (
+      !lastMessage ||
+      lastMessage.role !== "assistant" ||
+      lastMessage.streaming
+    ) {
+      return;
+    }
+
+    const processingKey = `${activeChatId}:${lastIndex}:${lastMessage.timestamp || ""}:${String(lastMessage.content || "").length}`;
+    if (processedAssistantMessagesRef.current.has(processingKey)) {
+      return;
+    }
+    processedAssistantMessagesRef.current.add(processingKey);
+
+    const { snippets, hasSnippet } = getLatestSandboxSnippets(
+      lastMessage.content,
+    );
+    if (!hasSnippet) return;
+
+    setSandboxCode((previousCode) => ({
+      html: snippets.html || previousCode.html,
+      css: snippets.css || previousCode.css,
+      js: snippets.js || previousCode.js,
+    }));
+    setSandboxActiveTab(getPreferredSandboxTab(snippets));
+  }, [activeChatId, activeMessages]);
 
   async function requestCompletion(
     chatMessages,
@@ -521,6 +644,43 @@ export default function App() {
     setTheme((prev) => (prev === "light" ? "dark" : "light"));
   }
 
+  function jumpToSearchResult(resultIndex) {
+    if (!searchResults.length) return;
+
+    const safeIndex = Math.max(
+      0,
+      Math.min(resultIndex, searchResults.length - 1),
+    );
+    const target = searchResults[safeIndex];
+    if (!target) return;
+
+    setActiveSearchResultIndex(safeIndex);
+    setJumpTarget({
+      messageIndex: target.messageIndex,
+      requestId: Date.now() + Math.random(),
+    });
+  }
+
+  function handleSearchNavigate(direction) {
+    if (!searchResults.length) return;
+    const nextIndex =
+      (activeSearchResultIndex + direction + searchResults.length) %
+      searchResults.length;
+    jumpToSearchResult(nextIndex);
+  }
+
+  function handleOpenSandboxFromCode(language, code) {
+    const normalizedLanguage = normalizeSandboxLanguage(language);
+    if (!normalizedLanguage) return;
+
+    setSandboxCode((previousCode) => ({
+      ...previousCode,
+      [normalizedLanguage]: code,
+    }));
+    setSandboxActiveTab(normalizedLanguage);
+    setSandboxPanelOpen(true);
+  }
+
   return (
     <div className="flex h-screen overflow-hidden bg-orange-50 dark:bg-slate-950 text-gray-900 dark:text-slate-100 transition-colors">
       {sidebarOpen && (
@@ -749,6 +909,25 @@ export default function App() {
 
             <div className="flex items-center gap-2">
               <button
+                onClick={() => {
+                  setSandboxPanelOpen((prev) => !prev);
+                }}
+                className="rounded-lg p-2 text-gray-500 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
+                title="Open code sandbox"
+              >
+                <Code2 className="h-5 w-5" />
+              </button>
+              <button
+                onClick={() => {
+                  setSearchPanelOpen((prev) => !prev);
+                  setSearchPanelMinimized(false);
+                }}
+                className="rounded-lg p-2 text-gray-500 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
+                title="Search messages"
+              >
+                <Search className="h-5 w-5" />
+              </button>
+              <button
                 onClick={handleThemeToggle}
                 className="rounded-lg p-2 text-gray-500 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
                 title={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
@@ -781,10 +960,45 @@ export default function App() {
               busy={busy}
               status={status}
               isStorageFull={storageData.isFull}
+              searchQuery={searchQuery}
+              matchedMessageIndexes={matchedMessageIndexes}
+              activeSearchMessageIndex={
+                searchResults[activeSearchResultIndex]?.messageIndex ?? null
+              }
+              jumpTarget={jumpTarget}
+              onOpenSandboxFromCode={handleOpenSandboxFromCode}
             />
           </div>
         </div>
       </div>
+
+      <SearchPanel
+        isOpen={searchPanelOpen}
+        isMinimized={searchPanelMinimized}
+        position={searchPanelPosition}
+        query={searchQuery}
+        roleFilter={searchRoleFilter}
+        results={searchResults}
+        activeResultIndex={activeSearchResultIndex}
+        onQueryChange={setSearchQuery}
+        onRoleFilterChange={setSearchRoleFilter}
+        onResultClick={jumpToSearchResult}
+        onNavigate={handleSearchNavigate}
+        onMinimize={() => setSearchPanelMinimized((prev) => !prev)}
+        onClose={() => setSearchPanelOpen(false)}
+        onPositionChange={setSearchPanelPosition}
+      />
+
+      <SandboxPanel
+        isOpen={sandboxPanelOpen}
+        code={sandboxCode}
+        activeTab={sandboxActiveTab}
+        autoRun={sandboxAutoRun}
+        onCodeChange={setSandboxCode}
+        onActiveTabChange={setSandboxActiveTab}
+        onAutoRunChange={setSandboxAutoRun}
+        onClose={() => setSandboxPanelOpen(false)}
+      />
     </div>
   );
 }

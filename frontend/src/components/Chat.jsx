@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import {
   ChevronDown,
   Copy,
@@ -22,6 +22,11 @@ export default function Chat({
   busy,
   status,
   isStorageFull,
+  searchQuery,
+  matchedMessageIndexes,
+  activeSearchMessageIndex,
+  jumpTarget,
+  onOpenSandboxFromCode,
 }) {
   const [input, setInput] = useState("");
   const [copiedIndex, setCopiedIndex] = useState(null);
@@ -129,6 +134,31 @@ export default function Chat({
   const selectedModelLabel =
     availableModels.find((model) => model.id === selectedModel)?.label ||
     "Choose model";
+  const matchedMessageIndexSet = useMemo(
+    () => new Set(matchedMessageIndexes || []),
+    [matchedMessageIndexes],
+  );
+
+  useEffect(() => {
+    if (!jumpTarget || typeof jumpTarget.messageIndex !== "number") return;
+
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    const targetNode = container.querySelector(
+      `[data-message-index="${jumpTarget.messageIndex}"]`,
+    );
+
+    if (!targetNode) return;
+
+    targetNode.scrollIntoView({ behavior: "smooth", block: "center" });
+    targetNode.classList.add("search-jump-flash");
+    const timer = window.setTimeout(() => {
+      targetNode.classList.remove("search-jump-flash");
+    }, 1300);
+
+    return () => window.clearTimeout(timer);
+  }, [jumpTarget]);
 
   return (
     <div className="flex w-full h-full min-h-0 flex-col dark:bg-slate-950">
@@ -289,6 +319,10 @@ export default function Chat({
               const mine = message.role === "user";
               const isStreaming = message.streaming;
               const hasThinking = hasThinkingTag(message.content);
+              const isMatched =
+                Boolean(searchQuery?.trim()) &&
+                matchedMessageIndexSet.has(index);
+              const isActiveMatch = activeSearchMessageIndex === index;
               const displayContent = hasThinking
                 ? extractResponse(message.content)
                 : message.content;
@@ -298,7 +332,14 @@ export default function Chat({
               return (
                 <div
                   key={index}
-                  className={`flex ${mine ? "justify-end" : "justify-start"} mb-2`}
+                  data-message-index={index}
+                  className={`search-message-anchor flex ${mine ? "justify-end" : "justify-start"} mb-2 rounded-2xl px-1 py-1 transition-colors ${
+                    isActiveMatch
+                      ? "search-match-active"
+                      : isMatched
+                        ? "search-match"
+                        : ""
+                  }`}
                 >
                   {mine ? (
                     <div className="flex flex-col items-end max-w-[85%] sm:max-w-[75%]">
@@ -360,6 +401,7 @@ export default function Chat({
                                     <CodeBlock
                                       language={language}
                                       code={codeContent}
+                                      onOpenSandbox={onOpenSandboxFromCode}
                                     />
                                   ) : (
                                     <code
@@ -387,36 +429,12 @@ export default function Chat({
                                 onClick={() =>
                                   copyToClipboard(displayContent, index)
                                 }
-                                className="p-1 rounded hover:bg-orange-50 transition-colors"
+                                className="p-1 rounded transition-colors"
                               >
                                 {copiedIndex === index ? (
-                                  <svg
-                                    className="w-3.5 h-3.5 text-green-500 dark:text-green-400"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={2}
-                                      d="M5 13l4 4L19 7"
-                                    />
-                                  </svg>
+                                  <Check className="w-3.5 h-3.5 text-green-500 dark:text-green-400" />
                                 ) : (
-                                  <svg
-                                    className="w-3.5 h-3.5 text-orange-400 dark:text-orange-500 hover:text-orange-600 dark:hover:text-orange-400"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={2}
-                                      d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-                                    />
-                                  </svg>
+                                  <Copy className="w-3.5 h-3.5 text-orange-400 dark:text-orange-500 hover:text-orange-600 dark:hover:text-orange-400" />
                                 )}
                               </button>
                             )}
