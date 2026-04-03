@@ -68,7 +68,7 @@ export default function CodeBlock({ language, code, onOpenSandbox }) {
         </div>
       </div>
 
-      {/* Code Content - Scrollable */}
+      {/* Code Content*/}
       <div className="overflow-x-auto">
         <SyntaxHighlighter
           language={language || "text"}
