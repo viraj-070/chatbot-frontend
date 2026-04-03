@@ -280,7 +280,7 @@ export default function Chat({
                         </div>
                       ) : (
                         <>
-                          <div className="selectable-text prose prose-sm max-w-none text-sm text-gray-800 dark:prose-invert dark:text-slate-100 [&_p]:mb-2 [&_table]:min-w-full [&_table]:border-collapse [&_table]:text-sm [&_th]:border [&_th]:border-gray-300 dark:[&_th]:border-slate-700 [&_th]:bg-gray-100 dark:[&_th]:bg-slate-800 [&_th]:px-2 [&_th]:py-1 [&_td]:border [&_td]:border-gray-300 dark:[&_td]:border-slate-700 [&_td]:px-2 [&_td]:py-1 [&_blockquote]:border-l-4 [&_blockquote]:border-gray-300 dark:[&_blockquote]:border-slate-600 [&_blockquote]:pl-3 [&_blockquote]:italic">
+                          <div className="selectable-text prose prose-sm max-w-none text-sm text-gray-800 dark:prose-invert dark:text-slate-100 [&_h1]:mb-3 [&_h1]:mt-5 [&_h1]:text-2xl [&_h1]:font-bold [&_h2]:mb-2 [&_h2]:mt-5 [&_h2]:text-xl [&_h2]:font-semibold [&_h3]:mb-2 [&_h3]:mt-4 [&_h3]:text-lg [&_h3]:font-semibold [&_h4]:mb-2 [&_h4]:mt-4 [&_h4]:text-base [&_h4]:font-semibold [&_h5]:mb-2 [&_h5]:mt-3 [&_h5]:text-sm [&_h5]:font-semibold [&_h6]:mb-2 [&_h6]:mt-3 [&_h6]:text-sm [&_h6]:font-medium [&_p]:mb-3 [&_p]:leading-7 [&_ul]:mb-3 [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:mb-3 [&_ol]:list-decimal [&_ol]:pl-6 [&_li]:mb-1 [&_table]:min-w-full [&_table]:border-collapse [&_table]:text-sm [&_th]:border [&_th]:border-gray-300 dark:[&_th]:border-slate-700 [&_th]:bg-gray-100 dark:[&_th]:bg-slate-800 [&_th]:px-2 [&_th]:py-1 [&_td]:border [&_td]:border-gray-300 dark:[&_td]:border-slate-700 [&_td]:px-2 [&_td]:py-1 [&_blockquote]:mb-3 [&_blockquote]:border-l-4 [&_blockquote]:border-gray-300 dark:[&_blockquote]:border-slate-600 [&_blockquote]:pl-3 [&_blockquote]:italic">
                             <ReactMarkdown
                               remarkPlugins={[remarkGfm]}
                               components={{
@@ -442,20 +442,8 @@ export default function Chat({
               </button>
             )}
           </div>
-          <div className="mt-1 flex items-center justify-center gap-1.5 text-center text-[10.5px] text-gray-400 opacity-80 dark:text-slate-500">
-            <div className="flex items-center gap-1">
-              <kbd className="rounded border border-gray-200 bg-gray-100 px-1.5 py-0.5 font-sans font-medium text-gray-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-400">
-                Enter
-              </kbd>
-              <span>to send</span>
-            </div>
-            <span className="text-gray-300 dark:text-slate-700">•</span>
-            <div className="flex items-center gap-1">
-              <kbd className="rounded border border-gray-200 bg-gray-100 px-1.5 py-0.5 font-sans font-medium text-gray-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-400">
-                Shift + Enter
-              </kbd>
-              <span>for new line</span>
-            </div>
+          <div className="mt-1 text-center text-[11px] text-gray-500 dark:text-slate-400">
+            Enter to send. Shift + Enter for new line.
           </div>
         </form>
       </div>

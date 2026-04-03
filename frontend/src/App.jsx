@@ -143,7 +143,6 @@ export default function App() {
   });
   const [availableModels, setAvailableModels] = useState([]);
   const [searchPanelOpen, setSearchPanelOpen] = useState(false);
-  const [searchPanelMinimized, setSearchPanelMinimized] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchRoleFilter, setSearchRoleFilter] = useState("all");
   const [activeSearchResultIndex, setActiveSearchResultIndex] = useState(0);
@@ -290,8 +289,16 @@ export default function App() {
 
       if (isSearchShortcut) {
         event.preventDefault();
-        setSearchPanelOpen((prev) => !prev);
-        setSearchPanelMinimized(false);
+        setSearchPanelOpen((prev) => {
+          const next = !prev;
+          if (!next) {
+            setSearchQuery("");
+            setSearchRoleFilter("all");
+            setActiveSearchResultIndex(0);
+            setJumpTarget(null);
+          }
+          return next;
+        });
         return;
       }
 
@@ -302,7 +309,13 @@ export default function App() {
       }
 
       if (event.key === "Escape") {
-        if (searchPanelOpen) setSearchPanelOpen(false);
+        if (searchPanelOpen) {
+          setSearchPanelOpen(false);
+          setSearchQuery("");
+          setSearchRoleFilter("all");
+          setActiveSearchResultIndex(0);
+          setJumpTarget(null);
+        }
         if (sandboxPanelOpen) setSandboxPanelOpen(false);
       }
     }
@@ -656,6 +669,27 @@ export default function App() {
     setTheme((prev) => (prev === "light" ? "dark" : "light"));
   }
 
+  function clearSearchState() {
+    setSearchQuery("");
+    setSearchRoleFilter("all");
+    setActiveSearchResultIndex(0);
+    setJumpTarget(null);
+  }
+
+  function handleSearchPanelClose() {
+    setSearchPanelOpen(false);
+    clearSearchState();
+  }
+
+  function handleSearchPanelToggle() {
+    if (searchPanelOpen) {
+      handleSearchPanelClose();
+      return;
+    }
+
+    setSearchPanelOpen(true);
+  }
+
   function jumpToSearchResult(resultIndex) {
     if (!searchResults.length) return;
 
@@ -930,10 +964,7 @@ export default function App() {
                 <Code2 className="h-5 w-5" />
               </button>
               <button
-                onClick={() => {
-                  setSearchPanelOpen((prev) => !prev);
-                  setSearchPanelMinimized(false);
-                }}
+                onClick={handleSearchPanelToggle}
                 className="rounded-lg p-2 text-gray-500 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
                 title="Search messages"
               >
@@ -986,7 +1017,6 @@ export default function App() {
 
       <SearchPanel
         isOpen={searchPanelOpen}
-        isMinimized={searchPanelMinimized}
         query={searchQuery}
         roleFilter={searchRoleFilter}
         results={searchResults}
@@ -995,8 +1025,7 @@ export default function App() {
         onRoleFilterChange={setSearchRoleFilter}
         onResultClick={jumpToSearchResult}
         onNavigate={handleSearchNavigate}
-        onMinimize={() => setSearchPanelMinimized((prev) => !prev)}
-        onClose={() => setSearchPanelOpen(false)}
+        onClose={handleSearchPanelClose}
       />
 
       <SandboxPanel
