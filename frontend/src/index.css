@@ -74,38 +74,38 @@ body.dark {
 }
 
 .search-panel-scrollbar::-webkit-scrollbar-track {
-  background: #fff7ed;
+  background: transparent;
   border-radius: 9999px;
 }
 
 .search-panel-scrollbar::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, #fdba74 0%, #fb923c 100%);
+  background: #cbd5e1;
   border-radius: 9999px;
-  border: 2px solid #fff7ed;
+  border: 2px solid transparent;
 }
 
 .search-panel-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, #fb923c 0%, #f97316 100%);
+  background: #94a3b8;
 }
 
 .dark .search-panel-scrollbar::-webkit-scrollbar-track {
-  background: #1e293b;
+  background: transparent;
 }
 
 .dark .search-panel-scrollbar::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, #f97316 0%, #ea580c 100%);
-  border: 2px solid #1e293b;
+  background: #475569;
+  border: 2px solid transparent;
 }
 
 .dark .search-panel-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, #ea580c 0%, #c2410c 100%);
+  background: #64748b;
 }
 
 .search-panel-scrollbar {
   scrollbar-width: thin;
-  scrollbar-color: #fb923c #fff7ed;
+  scrollbar-color: #94a3b8 transparent;
 }
 
 .dark .search-panel-scrollbar {
-  scrollbar-color: #f97316 #1e293b;
+  scrollbar-color: #64748b transparent;
 }
