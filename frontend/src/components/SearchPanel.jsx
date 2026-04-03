@@ -1,14 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Search, Minus, X, GripHorizontal } from "lucide-react";
+import { Search, Minus, X } from "lucide-react";
 import { escapeRegExp } from "../lib/searchUtils";
-
-const PANEL_WIDTH = 380;
-const PANEL_HEIGHT = 480;
-const MINIMIZED_PANEL_HEIGHT = 64;
-
-function clamp(value, min, max) {
-  return Math.min(Math.max(value, min), max);
-}
 
 function formatTime(date) {
   if (!date) return "";
@@ -45,7 +36,6 @@ function highlightPreview(text, query) {
 export default function SearchPanel({
   isOpen,
   isMinimized,
-  position,
   query,
   roleFilter,
   results,
@@ -56,117 +46,14 @@ export default function SearchPanel({
   onNavigate,
   onMinimize,
   onClose,
-  onPositionChange,
 }) {
-  const panelRef = useRef(null);
-  const dragRef = useRef({
-    startX: 0,
-    startY: 0,
-    originX: 0,
-    originY: 0,
-    dragging: false,
-  });
-  const [isDragging, setIsDragging] = useState(false);
-  const [viewport, setViewport] = useState(() => ({
-    width: typeof window !== "undefined" ? window.innerWidth : 1024,
-    height: typeof window !== "undefined" ? window.innerHeight : 768,
-  }));
-
-  useEffect(() => {
-    function handleResize() {
-      setViewport({
-        width: window.innerWidth,
-        height: window.innerHeight,
-      });
-    }
-
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
-
-  const viewportWidth = viewport.width;
-  const viewportHeight = viewport.height;
-  const panelWidth = Math.min(PANEL_WIDTH, Math.round(viewportWidth * 0.92));
-  const panelHeight = isMinimized ? MINIMIZED_PANEL_HEIGHT : PANEL_HEIGHT;
-  const maxX = Math.max(12, viewportWidth - panelWidth - 12);
-  const maxY = Math.max(12, viewportHeight - panelHeight - 12);
-
-  const resolvedPosition = useMemo(() => {
-    if (position) {
-      return {
-        x: clamp(position.x, 12, maxX),
-        y: clamp(position.y, 12, maxY),
-      };
-    }
-
-    return {
-      x: maxX,
-      y: clamp(108, 12, maxY),
-    };
-  }, [maxX, maxY, position]);
-
   if (!isOpen) return null;
 
-  function handlePointerDown(event) {
-    const isPrimaryButton = event.button === 0;
-    if (!isPrimaryButton) return;
-
-    dragRef.current = {
-      startX: event.clientX,
-      startY: event.clientY,
-      originX: resolvedPosition.x,
-      originY: resolvedPosition.y,
-      dragging: true,
-    };
-
-    setIsDragging(true);
-    event.currentTarget.setPointerCapture(event.pointerId);
-  }
-
-  function handlePointerMove(event) {
-    if (!dragRef.current.dragging) return;
-
-    const deltaX = event.clientX - dragRef.current.startX;
-    const deltaY = event.clientY - dragRef.current.startY;
-
-    onPositionChange({
-      x: clamp(dragRef.current.originX + deltaX, 12, maxX),
-      y: clamp(dragRef.current.originY + deltaY, 12, maxY),
-    });
-  }
-
-  function handlePointerUp(event) {
-    if (!dragRef.current.dragging) return;
-    dragRef.current.dragging = false;
-    setIsDragging(false);
-    event.currentTarget.releasePointerCapture(event.pointerId);
-  }
-
-  function handlePointerCancel(event) {
-    if (!dragRef.current.dragging) return;
-    dragRef.current.dragging = false;
-    setIsDragging(false);
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    }
-  }
-
   return (
-    <div
-      ref={panelRef}
-      className={`fixed z-[60] ${isDragging ? "select-none" : ""}`}
-      style={{ left: resolvedPosition.x, top: resolvedPosition.y }}
-    >
-      <div className="w-[min(92vw,380px)] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-900">
+    <div className="absolute right-4 top-20 z-[60] w-[min(92vw,380px)]">
+      <div className="overflow-hidden rounded-md border border-gray-300 bg-white dark:border-slate-700 dark:bg-slate-900">
         <div className="flex items-center justify-between border-b border-gray-200 bg-gray-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-800">
-          <div
-            onPointerDown={handlePointerDown}
-            onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerUp}
-            onPointerCancel={handlePointerCancel}
-            className="flex cursor-move items-center gap-2 text-sm font-semibold text-gray-700 dark:text-slate-100"
-          >
-            <GripHorizontal className="h-4 w-4" />
+          <div className="text-sm font-semibold text-gray-700 dark:text-slate-100">
             Message Search
           </div>
           <div className="flex items-center gap-1">
@@ -197,7 +84,7 @@ export default function SearchPanel({
           <button
             type="button"
             onClick={onMinimize}
-            className="flex w-full items-center justify-between px-3 py-2 text-left text-xs text-gray-600 transition-colors hover:bg-gray-50 dark:text-slate-300 dark:hover:bg-slate-800"
+            className="flex w-full items-center justify-between px-3 py-2 text-left text-xs text-gray-600 hover:bg-gray-50 dark:text-slate-300 dark:hover:bg-slate-800"
           >
             <span className="truncate">
               {query.trim() ? `"${query}"` : "Search is minimized"}
@@ -216,13 +103,13 @@ export default function SearchPanel({
                   value={query}
                   onChange={(event) => onQueryChange(event.target.value)}
                   placeholder="Search in this chat..."
-                  className="w-full rounded-lg border border-gray-300 bg-white py-2 pl-9 pr-3 text-sm text-gray-800 outline-none focus:border-gray-500 focus:ring-2 focus:ring-gray-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-slate-400 dark:focus:ring-slate-600/40"
+                  className="w-full rounded-md border border-gray-300 bg-white py-2 pl-9 pr-3 text-sm text-gray-800 outline-none focus:border-gray-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-slate-400"
                 />
               </div>
               <select
                 value={roleFilter}
                 onChange={(event) => onRoleFilterChange(event.target.value)}
-                className="rounded-lg border border-gray-300 bg-white px-2 py-2 text-xs text-gray-700 outline-none focus:border-gray-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
+                className="rounded-md border border-gray-300 bg-white px-2 py-2 text-xs text-gray-700 outline-none focus:border-gray-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
               >
                 <option value="all">All</option>
                 <option value="user">User</option>
@@ -254,7 +141,7 @@ export default function SearchPanel({
 
             <div className="search-panel-scrollbar max-h-72 overflow-y-auto space-y-2 pr-1">
               {results.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-gray-300 px-3 py-5 text-center text-xs text-gray-500 dark:border-slate-600 dark:text-slate-400">
+                <div className="rounded-md border border-dashed border-gray-300 px-3 py-5 text-center text-xs text-gray-500 dark:border-slate-600 dark:text-slate-400">
                   No matches yet.
                 </div>
               ) : (
@@ -265,7 +152,7 @@ export default function SearchPanel({
                       key={`${result.messageIndex}-${index}`}
                       type="button"
                       onClick={() => onResultClick(index)}
-                      className={`w-full rounded-lg border px-3 py-2 text-left transition-colors ${
+                      className={`w-full rounded-md border px-3 py-2 text-left transition-colors ${
                         isActive
                           ? "border-gray-400 bg-gray-100 dark:border-slate-500 dark:bg-slate-700/70"
                           : "border-gray-200 bg-white hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700"

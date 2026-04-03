@@ -144,7 +144,6 @@ export default function App() {
   const [availableModels, setAvailableModels] = useState([]);
   const [searchPanelOpen, setSearchPanelOpen] = useState(false);
   const [searchPanelMinimized, setSearchPanelMinimized] = useState(false);
-  const [searchPanelPosition, setSearchPanelPosition] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchRoleFilter, setSearchRoleFilter] = useState("all");
   const [activeSearchResultIndex, setActiveSearchResultIndex] = useState(0);
@@ -875,23 +874,23 @@ export default function App() {
                 Chat
                 <div className="group relative flex items-center">
                   <div
-                    className={`cursor-help rounded-full border px-2.5 py-1 text-xs font-medium shadow-sm transition-colors ${
+                    className={`cursor-help rounded-md border px-2 py-1 text-xs font-medium ${
                       storageData.isFull
-                        ? "border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400"
+                        ? "border-red-300 bg-red-100 text-red-700 dark:border-red-800 dark:bg-red-900/30 dark:text-red-400"
                         : storageData.percentage > 80
-                          ? "border-orange-200 dark:border-orange-900 bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-400"
-                          : "border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700"
+                          ? "border-yellow-300 bg-yellow-100 text-yellow-800 dark:border-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300"
+                          : "border-gray-300 bg-white text-gray-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
                     }`}
                   >
                     {storageData.percentage.toFixed(2)}% Used
                   </div>
 
-                  <div className="pointer-events-none invisible absolute left-0 top-full z-50 mt-2 w-72 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 text-sm text-gray-700 dark:text-slate-200 opacity-0 shadow-lg dark:shadow-black/50 transition-all duration-200 group-hover:visible group-hover:opacity-100">
-                    <div className="mb-3 flex items-center justify-between border-b border-gray-100 dark:border-slate-700 pb-3">
-                      <h4 className="font-semibold tracking-tight text-gray-900 dark:text-slate-100">
+                  <div className="pointer-events-none invisible absolute left-0 top-full z-50 mt-2 w-72 rounded-md border border-gray-300 bg-white p-3 text-sm text-gray-700 opacity-0 transition-opacity group-hover:visible group-hover:opacity-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                    <div className="mb-2 flex items-center justify-between border-b border-gray-200 pb-2 dark:border-slate-700">
+                      <h4 className="font-semibold text-gray-900 dark:text-slate-100">
                         Global Storage Usage
                       </h4>
-                      <span className="rounded-md bg-gray-100 dark:bg-slate-700 px-2 py-0.5 font-mono text-xs text-gray-500 dark:text-slate-400">
+                      <span className="rounded bg-gray-100 px-2 py-0.5 font-mono text-xs text-gray-600 dark:bg-slate-700 dark:text-slate-300">
                         {(storageData.bytes / (1024 * 1024)).toFixed(2)} MB / 4
                         MB
                       </span>
@@ -988,7 +987,6 @@ export default function App() {
       <SearchPanel
         isOpen={searchPanelOpen}
         isMinimized={searchPanelMinimized}
-        position={searchPanelPosition}
         query={searchQuery}
         roleFilter={searchRoleFilter}
         results={searchResults}
@@ -999,7 +997,6 @@ export default function App() {
         onNavigate={handleSearchNavigate}
         onMinimize={() => setSearchPanelMinimized((prev) => !prev)}
         onClose={() => setSearchPanelOpen(false)}
-        onPositionChange={setSearchPanelPosition}
       />
 
       <SandboxPanel

@@ -1,12 +1,5 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
-import {
-  ChevronDown,
-  Copy,
-  Check,
-  ArrowDown,
-  Square,
-  Send,
-} from "lucide-react";
+import { Copy, Check, ArrowDown, Square, Send } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import CodeBlock from "./CodeBlock";
@@ -30,11 +23,9 @@ export default function Chat({
   const [input, setInput] = useState("");
   const [copiedIndex, setCopiedIndex] = useState(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
-  const [isModelMenuOpen, setIsModelMenuOpen] = useState(false);
   const endRef = useRef(null);
   const textareaRef = useRef(null);
   const messagesContainerRef = useRef(null);
-  const modelMenuRef = useRef(null);
 
   // Auto-resize textarea
   const adjustTextareaHeight = useCallback(() => {
@@ -48,27 +39,6 @@ export default function Chat({
   useEffect(() => {
     adjustTextareaHeight();
   }, [input, adjustTextareaHeight]);
-
-  useEffect(() => {
-    function handleOutsideClick(event) {
-      if (!modelMenuRef.current?.contains(event.target)) {
-        setIsModelMenuOpen(false);
-      }
-    }
-
-    function handleEscape(event) {
-      if (event.key === "Escape") {
-        setIsModelMenuOpen(false);
-      }
-    }
-
-    document.addEventListener("mousedown", handleOutsideClick);
-    document.addEventListener("keydown", handleEscape);
-    return () => {
-      document.removeEventListener("mousedown", handleOutsideClick);
-      document.removeEventListener("keydown", handleEscape);
-    };
-  }, []);
 
   // Detect scroll position for scroll button visibility
   const handleScroll = useCallback(() => {
@@ -130,9 +100,6 @@ export default function Chat({
     return content.includes("<think>") || content.includes("</think>");
   }
 
-  const selectedModelLabel =
-    availableModels.find((model) => model.id === selectedModel)?.label ||
-    "Choose model";
   const matchedMessageIndexSet = useMemo(
     () => new Set(matchedMessageIndexes || []),
     [matchedMessageIndexes],
@@ -220,27 +187,6 @@ export default function Chat({
           cursor: text;
         }
 
-        .model-menu-scrollbar::-webkit-scrollbar {
-          width: 6px;
-        }
-        .model-menu-scrollbar::-webkit-scrollbar-track {
-          background: transparent;
-          border-radius: 9999px;
-        }
-        .model-menu-scrollbar::-webkit-scrollbar-thumb {
-          background: #94a3b8;
-          border-radius: 9999px;
-        }
-        .dark .model-menu-scrollbar::-webkit-scrollbar-thumb {
-          background: #64748b;
-        }
-        .model-menu-scrollbar {
-          scrollbar-width: thin;
-          scrollbar-color: #94a3b8 transparent;
-        }
-        .dark .model-menu-scrollbar {
-          scrollbar-color: #64748b transparent;
-        }
       `}</style>
 
       <div className="chat-container flex min-h-0 w-full flex-1 flex-col dark:bg-slate-950">
@@ -437,77 +383,25 @@ export default function Chat({
           className="mx-auto flex w-full max-w-3xl flex-col gap-2 p-3 sm:p-4"
         >
           <div className="flex justify-start">
-            <div className="relative" ref={modelMenuRef}>
-              <button
-                type="button"
-                onClick={() => {
-                  if (busy || availableModels.length === 0) return;
-                  setIsModelMenuOpen((prev) => !prev);
-                }}
+            <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-slate-300 sm:text-sm">
+              <span>Model:</span>
+              <select
+                value={selectedModel}
+                onChange={(event) => onModelChange(event.target.value)}
                 disabled={busy || availableModels.length === 0}
-                className="inline-flex max-w-[300px] items-center gap-2 rounded-md border border-gray-300 bg-white px-3 py-2 text-xs text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 sm:max-w-[420px] sm:text-sm"
-                aria-haspopup="listbox"
-                aria-expanded={isModelMenuOpen}
+                className="max-w-[300px] rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-700 outline-none focus:border-gray-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:focus:border-slate-500 sm:max-w-[420px] sm:text-sm"
               >
-                <span className="text-gray-500 dark:text-slate-400">
-                  Model:
-                </span>
-                <span className="truncate font-medium text-gray-800 dark:text-slate-100">
-                  {selectedModelLabel}
-                </span>
-                <ChevronDown
-                  className={`h-4 w-4 shrink-0 text-gray-500 transition-transform dark:text-slate-400 ${
-                    isModelMenuOpen ? "rotate-180" : ""
-                  }`}
-                />
-              </button>
-
-              {isModelMenuOpen && (
-                <div className="absolute bottom-[calc(100%+8px)] left-0 z-40 w-[min(90vw,380px)] overflow-hidden rounded-md border border-gray-200 bg-white shadow-md dark:border-slate-700 dark:bg-slate-800">
-                  <div className="border-b border-gray-200 bg-gray-50 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-gray-600 dark:border-slate-700 dark:bg-slate-700 dark:text-slate-300">
-                    Choose NVIDIA model
-                  </div>
-                  <ul
-                    role="listbox"
-                    className="model-menu-scrollbar max-h-56 overflow-y-auto p-1.5"
-                  >
-                    {availableModels.map((model) => {
-                      const selected = model.id === selectedModel;
-                      return (
-                        <li key={model.id}>
-                          <button
-                            type="button"
-                            role="option"
-                            aria-selected={selected}
-                            onClick={() => {
-                              onModelChange(model.id);
-                              setIsModelMenuOpen(false);
-                            }}
-                            className={`w-full rounded-md px-3 py-2.5 text-left transition-colors ${
-                              selected
-                                ? "bg-gray-100 text-gray-900 dark:bg-slate-700 dark:text-slate-100"
-                                : "text-gray-700 hover:bg-gray-50 dark:text-slate-300 dark:hover:bg-slate-700/50"
-                            }`}
-                          >
-                            <div className="flex items-center justify-between gap-3">
-                              <span className="truncate text-sm font-medium dark:text-inherit">
-                                {model.label}
-                              </span>
-                              {selected && (
-                                <Check className="h-4 w-4 shrink-0 text-gray-700 dark:text-slate-200" />
-                              )}
-                            </div>
-                            <div className="mt-1 truncate text-[11px] text-gray-500 dark:text-slate-400">
-                              {model.id}
-                            </div>
-                          </button>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </div>
-              )}
-            </div>
+                {availableModels.length === 0 ? (
+                  <option value={selectedModel}>No models available</option>
+                ) : (
+                  availableModels.map((model) => (
+                    <option key={model.id} value={model.id}>
+                      {model.label}
+                    </option>
+                  ))
+                )}
+              </select>
+            </label>
           </div>
 
           <div className="flex items-start justify-center gap-2 sm:gap-3">
