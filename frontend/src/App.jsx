@@ -552,6 +552,19 @@ export default function App() {
 
   function handleCreateChat() {
     if (busy) return;
+
+    const existingEmptyChat = chats.find(
+      (chat) => Array.isArray(chat.messages) && chat.messages.length === 0,
+    );
+
+    if (existingEmptyChat) {
+      setActiveChatId(existingEmptyChat.id);
+      setEditingChatId(null);
+      setEditingTitle("");
+      setSidebarOpen(false);
+      return;
+    }
+
     const id = `chat-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     const title = getNextDefaultChatName(chats);
     const newChat = createChat(id, title);
