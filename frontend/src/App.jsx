@@ -3,6 +3,7 @@ import { Code2, Moon, Search, Sun, Trash2 } from "lucide-react";
 import Chat from "./components/Chat";
 import SearchPanel from "./components/SearchPanel";
 import SandboxPanel from "./components/SandboxPanel";
+import DeleteConfirmDialog from "./components/DeleteConfirmDialog";
 import {
   createProviderClient,
   DEFAULT_NVIDIA_MODEL_ID,
@@ -155,6 +156,7 @@ export default function App() {
   });
   const [sandboxActiveTab, setSandboxActiveTab] = useState("html");
   const [sandboxAutoRun, setSandboxAutoRun] = useState(true);
+  const [deleteConfirmData, setDeleteConfirmData] = useState(null);
   const [storageData, setStorageData] = useState(() => {
     const stats = getStoreStats(initialStore.chats, initialStore.activeChatId);
     return {
@@ -588,6 +590,17 @@ export default function App() {
 
   function handleDeleteChat(chatId) {
     if (busy) return;
+    const chatToDelete = chats.find((chat) => chat.id === chatId);
+    if (chatToDelete) {
+      setDeleteConfirmData({ chatId, chatTitle: chatToDelete.title });
+    }
+  }
+
+  function confirmDelete() {
+    if (!deleteConfirmData) return;
+
+    const { chatId } = deleteConfirmData;
+    setDeleteConfirmData(null);
 
     setChats((currentChats) => {
       if (currentChats.length <= 1) {
@@ -611,6 +624,10 @@ export default function App() {
       setEditingChatId(null);
       setEditingTitle("");
     }
+  }
+
+  function cancelDelete() {
+    setDeleteConfirmData(null);
   }
 
   function handleStartRename(chatId, currentTitle) {
@@ -1037,6 +1054,13 @@ export default function App() {
         onActiveTabChange={setSandboxActiveTab}
         onAutoRunChange={setSandboxAutoRun}
         onClose={() => setSandboxPanelOpen(false)}
+      />
+
+      <DeleteConfirmDialog
+        isOpen={deleteConfirmData !== null}
+        chatTitle={deleteConfirmData?.chatTitle || ""}
+        onConfirm={confirmDelete}
+        onCancel={cancelDelete}
       />
     </div>
   );
