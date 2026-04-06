@@ -4,6 +4,7 @@ import Chat from "./components/Chat";
 import SearchPanel from "./components/SearchPanel";
 import SandboxPanel from "./components/SandboxPanel";
 import DeleteConfirmDialog from "./components/DeleteConfirmDialog";
+import ClearChatConfirmDialog from "./components/ClearChatConfirmDialog";
 import {
   createProviderClient,
   DEFAULT_NVIDIA_MODEL_ID,
@@ -157,6 +158,7 @@ export default function App() {
   const [sandboxActiveTab, setSandboxActiveTab] = useState("html");
   const [sandboxAutoRun, setSandboxAutoRun] = useState(true);
   const [deleteConfirmData, setDeleteConfirmData] = useState(null);
+  const [clearConfirmData, setClearConfirmData] = useState(null);
   const [storageData, setStorageData] = useState(() => {
     const stats = getStoreStats(initialStore.chats, initialStore.activeChatId);
     return {
@@ -662,10 +664,20 @@ export default function App() {
 
   function handleClearChat() {
     if (!activeChat) return;
+    setClearConfirmData({
+      chatId: activeChat.id,
+      chatTitle: activeChat.title,
+      messageCount: activeChat.messages.length,
+    });
+  }
+
+  function confirmClear() {
+    if (!clearConfirmData) return;
+    setClearConfirmData(null);
 
     setChats((currentChats) =>
       currentChats.map((chat) =>
-        chat.id === activeChat.id
+        chat.id === clearConfirmData.chatId
           ? {
               ...chat,
               messages: [],
@@ -674,6 +686,10 @@ export default function App() {
           : chat,
       ),
     );
+  }
+
+  function cancelClear() {
+    setClearConfirmData(null);
   }
 
   function handleModelChange(nextModelId) {
@@ -1061,6 +1077,14 @@ export default function App() {
         chatTitle={deleteConfirmData?.chatTitle || ""}
         onConfirm={confirmDelete}
         onCancel={cancelDelete}
+      />
+
+      <ClearChatConfirmDialog
+        isOpen={clearConfirmData !== null}
+        chatTitle={clearConfirmData?.chatTitle || ""}
+        messageCount={clearConfirmData?.messageCount || 0}
+        onConfirm={confirmClear}
+        onCancel={cancelClear}
       />
     </div>
   );
