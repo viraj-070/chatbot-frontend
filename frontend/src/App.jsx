@@ -702,6 +702,24 @@ export default function App() {
     setTheme((prev) => (prev === "light" ? "dark" : "light"));
   }
 
+  function handleMoveChat(chatId, direction) {
+    setChats((currentChats) => {
+      const index = currentChats.findIndex((chat) => chat.id === chatId);
+      if (index === -1) return currentChats;
+      if (direction === "up" && index === 0) return currentChats;
+      if (direction === "down" && index === currentChats.length - 1)
+        return currentChats;
+
+      const newChats = [...currentChats];
+      const swapIndex = direction === "up" ? index - 1 : index + 1;
+      [newChats[index], newChats[swapIndex]] = [
+        newChats[swapIndex],
+        newChats[index],
+      ];
+      return newChats;
+    });
+  }
+
   function clearSearchState() {
     setSearchQuery("");
     setSearchRoleFilter("all");
@@ -882,6 +900,48 @@ export default function App() {
                             strokeLinejoin="round"
                             strokeWidth={2}
                             d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                          />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={() => handleMoveChat(chat.id, "up")}
+                        disabled={busy || chats.indexOf(chat) === 0}
+                        className="h-7 w-7 rounded-md text-gray-400 dark:text-slate-500 hover:bg-blue-50 dark:hover:bg-slate-700 hover:text-blue-600 dark:hover:text-blue-400 disabled:opacity-20 disabled:hover:bg-transparent"
+                        aria-label="Move chat up"
+                      >
+                        <svg
+                          className="mx-auto h-3.5 w-3.5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M5 15l7-7 7 7"
+                          />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={() => handleMoveChat(chat.id, "down")}
+                        disabled={
+                          busy || chats.indexOf(chat) === chats.length - 1
+                        }
+                        className="h-7 w-7 rounded-md text-gray-400 dark:text-slate-500 hover:bg-blue-50 dark:hover:bg-slate-700 hover:text-blue-600 dark:hover:text-blue-400 disabled:opacity-20 disabled:hover:bg-transparent"
+                        aria-label="Move chat down"
+                      >
+                        <svg
+                          className="mx-auto h-3.5 w-3.5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M19 9l-7 7-7-7"
                           />
                         </svg>
                       </button>
